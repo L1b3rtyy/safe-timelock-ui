@@ -1,0 +1,11 @@
+{
+  "name": "SafeTimelock",
+  "description": "Ads timelock to Gnosis Safe",
+  "icons": [
+    {
+      "src": "/time-lock.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ]
+}

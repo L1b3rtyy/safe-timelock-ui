@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" id="time-security">
+  <defs>
+    <linearGradient id="a" x1="24" x2="24" y1="43.03" y2="4.97" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fa8bff"></stop>
+      <stop offset="1" stop-color="#2bd2ff"></stop>
+    </linearGradient>
+  </defs>
+  <path fill="url(#a)" d="M26.63 15v9h5a1 1 0 0 1 0 2h-6a1 1 0 0 1-1-1V15a1 1 0 0 1 2 0ZM13.89 32.75H5.35a2 2 0 0 1-2-2v-6.63a2 2 0 0 1 1.92-2v-2.33a4.36 4.36 0 0 1 8.71 0v2.34a2 2 0 0 1 1.91 2v6.63a2 2 0 0 1-2 1.99Zm-5.21-5a5.43 5.43 0 0 0 0 1.28 1 1 0 0 0 2 0 5.77 5.77 0 0 0-.08-1.26 1.49 1.49 0 1 0-1.87 0Zm-1.41-5.63H12v-2.33a2.36 2.36 0 0 0-4.71 0ZM25.62 5a19.06 19.06 0 0 0-14.23 6.39 1 1 0 0 0 1.49 1.33C23.2 1.06 42.66 8.44 42.65 24c0 15.21-18.8 22.81-29.31 11.81a1 1 0 0 0-1.44 1.39C23.64 49.5 44.69 41 44.65 24A19.06 19.06 0 0 0 25.62 5Z"></path>
+</svg>
