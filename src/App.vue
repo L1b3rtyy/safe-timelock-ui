@@ -6,6 +6,7 @@
   import { getProxyDetails, loadGuardData, getGuardVersion, defineListenersGuard, STATES, EVENT_NAMES_PROXY, initSafe, setConfig, setGuard, defineListenersSafe, upgradeGuard, setProvider } from './composables/useSafe.js';
   import { ref, onMounted, computed  } from 'vue';
   import { version } from "../package.json";
+  import versions from "./composables/versions.json";
   
   const safeInfo = ref(null);
   const guardInfo = ref({address: null});
@@ -22,10 +23,8 @@
   const editingConfig = ref(false);
   const addingGuard = ref(false);
   const settingGuard = ref(false);
-  const upgradingGuard = ref(false);
   const settingProvider = ref(false);
   const mewGuardAddress = ref(null);
-  const mewGuardImpAddress = ref(null);
   const settingProviderCall = ref(false);
   const userMsgDuration = 10000;
   const connected = computed(() => {
@@ -215,8 +214,10 @@ M:  for (let i = 0; i < array.length; i++) {
     editingConfig.value = false;
     addingGuard.value = false;
     settingGuard.value = false;
-    upgradingGuard.value = false;
     settingProvider.value = false;
+  }
+  function latestGuardAddress() {
+    return versions[versions.length-1].address;
   }
   onMounted(async () => {
     try {
@@ -295,14 +296,11 @@ M:  for (let i = 0; i < array.length; i++) {
           <tr v-if="guardInfo.proxyData">
             <td style="text-align: left;">Imp</td>
             <td>
-              <a v-if="!upgradingGuard" :href="blockexplorer && blockexplorer.address.replace('\{\{address\}\}', guardInfo.proxyData.proxy.imp)">{{ guardInfo.proxyData.proxy.imp }}</a>
+              <a :href="blockexplorer && blockexplorer.address.replace('\{\{address\}\}', guardInfo.proxyData.proxy.imp)">{{ guardInfo.proxyData.proxy.imp }}</a>
+              <myTooltip v-if="versions.find(v => v.address == guardInfo.proxyData.proxy.imp)==-1" emoji="⁉️" text="Unknown version"/>
               <span v-if="guardInfo.proxyData.admin.owner == safeInfo.safeAddress">
-                <myTooltip v-if="!upgradingGuard" @click="resetEdit();upgradingGuard=true" icon="fa-solid fa-arrow-up-from-bracket" text="Upgrade Guard"/>
-                <span v-else>
-                  <input v-model.lazy="mewGuardImpAddress" type="text" placeholder="Enter new implementation address" style="width: 85%;"/>
-                  <myTooltip @click="upgradingGuard=false; changeGuard(upgradeGuard(guardInfo.proxyData.proxy.admin, guardInfo.address, mewGuardImpAddress))" icon="fa-solid fa-save" text="Set Guard to this one"/>
-                  <myTooltip @click="upgradingGuard=false" icon="fa-solid fa-cancel" text="Cancel"/>
-                </span>
+                <myTooltip v-if="guardInfo.proxyData.proxy.imp == latestGuardAddress()" emoji="✅" text="Implementation is the latest version"/>
+                <myTooltip v-else @click="resetEdit(); changeGuard(upgradeGuard(guardInfo.proxyData.proxy.admin, guardInfo.address, latestGuardAddress()))" icon="fa-solid fa-arrow-up-from-bracket" text="Upgrade Guard to latest version"/>
               </span>
               <myTooltip v-else emoji="⚠️" :text="'Guard owner is not the Safe (is ' + guardInfo.safeAddress + ')'"/>
             </td>
