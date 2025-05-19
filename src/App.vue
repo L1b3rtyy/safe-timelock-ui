@@ -1,11 +1,12 @@
 <!-- src/App.vue -->
 <script setup>
+  import myTooltip from './components/myTooltip.vue';
   import QueueTransaction from './components/QueueTransaction.vue';
   import Transactions from './components/Transactions.vue';
   import { getProxyDetails, loadGuardData, getGuardVersion, defineListenersGuard, STATES, EVENT_NAMES_PROXY, initSafe, setConfig, setGuard, defineListenersSafe, upgradeGuard, setProvider } from './composables/useSafe.js';
   import { ref, onMounted, computed  } from 'vue';
   import { version } from "../package.json";
-
+  
   const safeInfo = ref(null);
   const guardInfo = ref({address: null});
   const guardInfoOld = {};
@@ -34,8 +35,8 @@
     const res = []
     if(guardInfo.value.safeAddress && guardInfo.value.safeAddress != safeInfo.value.safeAddress)  res.push("Guard not pointing to Safe (points to " + guardInfo.value.safeAddress + ")");
     if(guardInfo.value.proxyData && guardInfo.value.proxyData.admin.owner != safeInfo.value.safeAddress) res.push("Guard admin not pointing to Safe (points to " + guardInfo.value.proxyData.admin.owner + ")");
-    if(guardInfo.value.proxyData && guardInfo.value.proxyData.proxy.admin != guardInfo.value.proxyData.admin.admin) res.push("Mismatch between guard proxy and admin on admin value (proxy=> " + guardInfo.value.proxyData.proxy.admin + "`, admin=> " + guardInfo.value.proxyData.admin.admin + ")");
-    if(guardInfo.value.proxyData && guardInfo.value.proxyData.proxy.imp != guardInfo.value.proxyData.admin.imp) res.push("Mismatch between guard proxy and admin on imp value (proxy=> " + guardInfo.value.proxyData.proxy.imp + ", admin=> " + guardInfo.value.proxyData.admin.imp + ")");
+    if(guardInfo.value.proxyData && guardInfo.value.proxyData.proxy.admin != guardInfo.value.proxyData.admin.admin) res.push("Mismatch between Guard proxy and admin on admin value (proxy=> " + guardInfo.value.proxyData.proxy.admin + "`, admin=> " + guardInfo.value.proxyData.admin.admin + ")");
+    if(guardInfo.value.proxyData && guardInfo.value.proxyData.proxy.imp != guardInfo.value.proxyData.admin.imp) res.push("Mismatch between Guard proxy and admin on imp value (proxy=> " + guardInfo.value.proxyData.proxy.imp + ", admin=> " + guardInfo.value.proxyData.admin.imp + ")");
     return res;
   })
 
@@ -117,13 +118,13 @@ M:  for (let i = 0; i < array.length; i++) {
         guardInfo.value.proxyData.admin.imp = implementation;
         getGuardVersion(implementation)
         .then(version => {
-          console.log('App.eventListenerProxy - guard version=', version);
+          console.log('App.eventListenerProxy - Guard version=', version);
           guardInfo.value.version = version;
           setAndResetMsgGuard("Guard implementation upgraded to version " + version + " (contract="+ implementation + ")");
         })
         .catch(error => {
           console.error("App.eventListenerProxy", error);
-          errorLoadGuard.value = "Error loading guard data: " + error.message;
+          errorLoadGuard.value = "Error loading Guard data: " + error.message;
         })
         break;
       case EVENT_NAMES_PROXY.OWNERSHIP_TRANSFERRED:
@@ -145,14 +146,14 @@ M:  for (let i = 0; i < array.length; i++) {
     return Promise.all([
       p_tx.then(txs => {
         transactions.value = txs;
-        console.log('App._loadGuardData - define guard listeners');
+        console.log('App._loadGuardData - define Guard listeners');
         defineListenersGuard(transactions.value, updateConfig);
       }),
       p_config.then(timelockConfig => updateConfig(timelockConfig, true)),
       p_safe.then(safeAddress => {
         guardInfo.value.safeAddress = safeAddress;
         if(safeAddress != safeInfo.value.safeAddress) {
-          console.error("App._loadGuardData - guard safe address does not match safe address, [guardInfo.safeAddress, safeInfo.safeAddress]=" + [guardInfo.value.safeAddress, safeInfo.value.safeAddress]);
+          console.error("App._loadGuardData - Guard safe address does not match safe address, [guardInfo.safeAddress, safeInfo.safeAddress]=" + [guardInfo.value.safeAddress, safeInfo.value.safeAddress]);
           errorLoadGuard.value = "Guard address does not match safe address";
         }
       }),
@@ -168,7 +169,7 @@ M:  for (let i = 0; i < array.length; i++) {
     })
     .catch(error => {
       console.error("App._loadGuardData", error);
-      errorLoadGuard.value = "Error loading guard data: " + error.message;
+      errorLoadGuard.value = "Error loading Guard data: " + error.message;
     })
     .finally(() => loadingGuard.value = false);
   }
@@ -187,7 +188,7 @@ M:  for (let i = 0; i < array.length; i++) {
   function changeGuard(promise) {
     promise.catch(error => {
       console.error("App.changeGuard", error);
-      setAndResetMsgGuard("Error changing guard: " + error.message);
+      setAndResetMsgGuard("Error changing Guard: " + error.message);
     })
   }
   async function callSetProvider(providerURL) {
@@ -197,7 +198,7 @@ M:  for (let i = 0; i < array.length; i++) {
     .then(() => {
       safeInfo.value.provider = "EXTERNAL - " + providerURL.substring(0, 25) + "...";
       if(guardInfo.value.address) {
-        console.log('App.setProvider - load guard data');
+        console.log('App.setProvider - load Guard data');
         _loadGuardData(guardInfo.value.address);
         console.log('App.setProvider - define safe listener');
         defineListenersSafe(guardAddress => _loadGuardData(guardAddress));
@@ -223,7 +224,7 @@ M:  for (let i = 0; i < array.length; i++) {
       const {network, chainId, safeAddress, guardAddress, chainInfoPromise, buildInProvider, version} = await initSafe();
       safeInfo.value = {network, chainId, safeAddress, provider: buildInProvider && "BUILD IN", version};
       
-      console.log('App.onMounted - load guard data');
+      console.log('App.onMounted - load Guard data');
       _loadGuardData(guardAddress);
       
       console.log('App.onMounted - define safe listener');
@@ -256,7 +257,10 @@ M:  for (let i = 0; i < array.length; i++) {
             <td colspan="2" style="text-align: left;">Safe</td>
             <td>
               <a :href="blockexplorer && blockexplorer.address.replace('\{\{address\}\}', safeInfo.safeAddress)">{{ safeInfo.safeAddress}}</a>
-              <span v-if="guardInfo.safeAddress">{{guardInfo.safeAddress == safeInfo.safeAddress ?  ' ✅' : ' ⚠️'}}</span>
+              <span v-if="guardInfo.safeAddress">
+                <myTooltip v-if="guardInfo.safeAddress == safeInfo.safeAddress" emoji="✅" text="Guard points to the Safe"/>
+                <myTooltip v-else emoji="⚠️" :text="'Guard not pointing to the Safe (points to ' + guardInfo.safeAddress + ')'"/>
+              </span>
             </td>
           </tr>
           <tr>
@@ -266,26 +270,26 @@ M:  for (let i = 0; i < array.length; i++) {
             <td v-if="guardInfo.address">
               <span v-if="!addingGuard">
                 <a :href="blockexplorer && blockexplorer.address.replace('\{\{address\}\}', guardInfo.address)">{{ guardInfo.address }}</a>
-                <font-awesome-icon @click="changeGuard(setGuard(true))" style="margin-left: 5px; cursor: pointer;" icon="fa-solid fa-trash-can" />
-                <font-awesome-icon @click="resetEdit();addingGuard=true" style="margin-left: 5px; cursor: pointer;" icon="fa-solid fa-edit" />
+                <myTooltip @click="changeGuard(setGuard(true))" icon="fa-solid fa-trash-can" text="Remove Guard"/>
+                <myTooltip @click="resetEdit();addingGuard=true" icon="fa-solid fa-edit" text="Change Guard"/>
               </span>
               <span v-else>
-                <input v-model.lazy="mewGuardAddress" type="text" placeholder="Enter new guard address" style="width: 85%;"/>
-                <font-awesome-icon @click="addingGuard=false; changeGuard(setGuard(true, mewGuardAddress))" style="margin-left: 5px; cursor: pointer;" icon="fa-solid fa-save" />
-                <font-awesome-icon @click="addingGuard=false" style="margin-left: 5px; cursor: pointer;" icon="fa-solid fa-cancel" />
+                <input v-model.lazy="mewGuardAddress" type="text" placeholder="Enter new Guard address" style="width: 85%;"/>
+                <myTooltip @click="addingGuard=false; changeGuard(setGuard(true, mewGuardAddress))" icon="fa-solid fa-save" text="Set Guard to this one"/>
+                <myTooltip @click="addingGuard=false" icon="fa-solid fa-cancel" text="Cancel"/>
               </span>
             </td>
             <td v-else-if="!settingGuard">
               <span style="color: red;">GUARD NOT SET ⚠️</span>
-              <font-awesome-icon @click="resetEdit();settingGuard=true" style="margin-left: 5px; cursor: pointer;" icon="fa-solid fa-edit" />
+              <myTooltip @click="resetEdit();settingGuard=true" icon="fa-solid fa-edit" text="Set Guard"/>\
             </td>
             <td v-else>
-              <input :disabled="addingGuard" v-model.lazy="mewGuardAddress" type="text" placeholder="Enter guard address" style="width: 85%;"/>
+              <input :disabled="addingGuard" v-model.lazy="mewGuardAddress" type="text" placeholder="Enter Guard address" style="width: 85%;"/>
               <span v-if="!addingGuard">
-                <font-awesome-icon @click="resetEdit();addingGuard=true; changeGuard(setGuard(false, mewGuardAddress))" style="margin-left: 5px; cursor: pointer;" icon="fa-solid fa-save" />
-                <font-awesome-icon @click="resetEdit()" style="margin-left: 5px; cursor: pointer;" icon="fa-solid fa-cancel" />
+                <myTooltip @click="resetEdit();addingGuard=true; changeGuard(setGuard(false, mewGuardAddress))" icon="fa-solid fa-save" text="Set Guard to this one"/>
+                <myTooltip @click="resetEdit()" icon="fa-solid fa-cancel" text="Cancel"/>
               </span>
-              <font-awesome-icon v-else @click="addingGuard=false" style="margin-left: 5px; cursor: pointer;" icon="fa-solid fa-edit" />
+              <myTooltip @click="addingGuard=false" icon="fa-solid fa-edit" text="Edit again"/>
             </td>
           </tr>
           <tr v-if="guardInfo.proxyData">
@@ -293,21 +297,22 @@ M:  for (let i = 0; i < array.length; i++) {
             <td>
               <a v-if="!upgradingGuard" :href="blockexplorer && blockexplorer.address.replace('\{\{address\}\}', guardInfo.proxyData.proxy.imp)">{{ guardInfo.proxyData.proxy.imp }}</a>
               <span v-if="guardInfo.proxyData.admin.owner == safeInfo.safeAddress">
-                <font-awesome-icon v-if="!upgradingGuard" @click="resetEdit();upgradingGuard=true" style="margin-left: 5px; cursor: pointer;" icon="fa-solid fa-arrow-up-from-bracket" />
+                <myTooltip v-if="!upgradingGuard" @click="resetEdit();upgradingGuard=true" icon="fa-solid fa-arrow-up-from-bracket" text="Upgrade Guard"/>
                 <span v-else>
                   <input v-model.lazy="mewGuardImpAddress" type="text" placeholder="Enter new implementation address" style="width: 85%;"/>
-                  <font-awesome-icon @click="upgradingGuard=false; changeGuard(upgradeGuard(guardInfo.proxyData.proxy.admin, guardInfo.address, mewGuardImpAddress))" style="margin-left: 5px; cursor: pointer;" icon="fa-solid fa-save" />
-                  <font-awesome-icon @click="upgradingGuard=false" style="margin-left: 5px; cursor: pointer;" icon="fa-solid fa-cancel" />
+                  <myTooltip @click="upgradingGuard=false; changeGuard(upgradeGuard(guardInfo.proxyData.proxy.admin, guardInfo.address, mewGuardImpAddress))" icon="fa-solid fa-save" text="Set Guard to this one"/>
+                  <myTooltip @click="upgradingGuard=false" icon="fa-solid fa-cancel" text="Cancel"/>
                 </span>
               </span>
-              <span v-else> ⚠️</span>
+              <myTooltip v-else emoji="⚠️" :text="'Guard owner is not the Safe (is ' + guardInfo.safeAddress + ')'"/>
             </td>
           </tr>
           <tr v-if="guardInfo.proxyData">
             <td style="text-align: left;">Admin</td>
             <td>
               <a :href="blockexplorer && blockexplorer.address.replace('\{\{address\}\}', guardInfo.proxyData.proxy.admin)">{{ guardInfo.proxyData.proxy.admin }}</a>
-              <span>{{guardInfo.proxyData.admin.imp == guardInfo.proxyData.proxy.imp && guardInfo.proxyData.admin.admin == guardInfo.proxyData.proxy.admin ? ' ✅' : ' ⚠️'}}</span>
+              <myTooltip v-if="guardInfo.proxyData.admin.imp == guardInfo.proxyData.proxy.imp && guardInfo.proxyData.admin.admin == guardInfo.proxyData.proxy.admin" emoji="✅" text="Proxy and Proxy Admin match"/>
+              <myTooltip v-else emoji="⚠️" text="Mismatch between Proxy and Proxy Admin"/>
             </td>
           </tr>
           <tr>
@@ -328,12 +333,12 @@ M:  for (let i = 0; i < array.length; i++) {
             <td v-else-if="!settingProvider">
               <span v-if="!settingProviderCall" style="color: red;">NO PROVIDER ⚠️</span>
               <span v-else>IN PROGRESS...</span>
-              <font-awesome-icon @click="resetEdit();settingProvider=true" style="margin-left: 5px; cursor: pointer;" icon="fa-solid fa-edit" />
+              <myTooltip @click="resetEdit();settingProvider=true" icon="fa-solid fa-edit" text="Set provider"/>
             </td>
             <td v-else>
               <input v-model.lazy="newProvider" type="text" placeholder="Enter provider URL" style="width: 85%;"/>
-              <font-awesome-icon @click="settingProvider=false; callSetProvider(newProvider)" style="margin-left: 5px; cursor: pointer;" icon="fa-solid fa-save" />
-              <font-awesome-icon @click="settingProvider=false" style="margin-left: 5px; cursor: pointer;" icon="fa-solid fa-cancel" />
+              <myTooltip @click="settingProvider=false; callSetProvider(newProvider)" icon="fa-solid fa-save" text="Set to this provider"/>
+              <myTooltip @click="settingProvider=false" icon="fa-solid fa-cancel" text="Cancel"/>
             </td>
           </tr>
         </table>
@@ -363,7 +368,7 @@ M:  for (let i = 0; i < array.length; i++) {
             <tr>
               <td colspan="3">
                 <span v-if="loadingGuard">Loading Guard</span>
-                <span v-else-if="errorLoadGuard">Issue loading config - check guard address</span>
+                <span v-else-if="errorLoadGuard">Issue loading config - check Guard address</span>
                 <span v-else>
                   <button :disabled="!connected" type="submit">{{editingConfig ? "Save Config" : "Edit Config"}}</button>
                   <button v-if="editingConfig" @click="editingConfig=false">Cancel</button>

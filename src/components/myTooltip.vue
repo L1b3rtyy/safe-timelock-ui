@@ -1,0 +1,61 @@
+<template>
+  <div class="tooltip" :style="'margin-left: ' + margin + ';' + (hasClick && 'cursor: pointer;')">
+    <font-awesome-icon v-if="icon" :icon="icon" />
+    <span v-else>{{ emoji }}</span>
+    <span :style="forcetext && 'visibility: visible;'" class="tooltiptext">{{ forcetext || text }}</span>
+  </div>
+</template>
+
+<script setup>  
+  import { onMounted, getCurrentInstance, ref } from 'vue';
+
+  const hasClick = ref(false);
+
+  onMounted(() => {
+    const instance = getCurrentInstance();
+    hasClick.value = !!instance?.vnode?.props?.onClick;
+  });
+
+  const props = defineProps({
+    margin: {
+      type: String,
+      default: '3px'
+    },
+    icon: String,
+    emoji: String,
+    text: String,
+    forcetext: String
+  })
+</script>
+
+<style>
+/* Tooltip container */
+.tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+/* Tooltip text */
+.tooltip .tooltiptext {
+  visibility: hidden;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  padding: 2px 5px;
+  border-radius: 6px;
+ 
+  /* Position the tooltip text */
+  width: max-content;
+  max-width: 150px;
+  bottom: 90%; /* above the icon */
+  left: 50%;
+  transform: translateX(-50%);
+  position: absolute;
+  z-index: 1;
+}
+
+/* Show the tooltip text when you mouse over the tooltip container */
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+}
+</style>

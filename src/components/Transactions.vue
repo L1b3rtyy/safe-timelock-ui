@@ -1,4 +1,5 @@
 <script setup>
+  import myTooltip from './myTooltip.vue';
   import Copy from './Copy.vue';
   import { executeTransaction, cancelTransaction } from '../composables/useSafe';
 
@@ -57,10 +58,15 @@
           <td>{{ truncate(tx.data, 20) }}
             <Copy :text="tx.data" />
           </td>
-          <td>{{ dateFormater(tx) + (showAction ? (disabled(tx) ? ' ❌' : ' ✅') : '')}}</td> 
+          <td>{{ dateFormater(tx) }}
+            <span v-if="showAction">
+              <myTooltip v-if="disabled(tx)" emoji="❌" text="Timelock still active" />
+              <myTooltip v-else emoji="✅" text="Timelock completed" />
+            </span>
+          </td> 
           <td v-if="showAction">
-            <button :disabled="disabled(tx)" @click="execute(tx)">Execute</button>
-            <button @click="cancel(tx.txHash, tx.actiondate)">Cancel</button>
+            <button style="padding: .2em" :disabled="disabled(tx)" @click="execute(tx)">Execute</button>
+            <button style="padding: .2em" @click="cancel(tx.txHash, tx.actiondate)">Cancel</button>
           </td>
         </tr>
       </tbody>
