@@ -21,10 +21,22 @@
       type: String,
       default: '3px'
     },
-    icon: String,
-    emoji: String,
-    text: String,
-    forcetext: String
+    icon: {
+      type: String,
+      default: null
+    },
+    emoji: {
+      type: String,
+      default: null
+    },
+    text: {
+      type: String,
+      required: true
+    },
+    forcetext: {
+      type: String,
+      default: null
+    }
   })
 </script>
 

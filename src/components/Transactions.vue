@@ -4,13 +4,34 @@
   import { executeTransaction, cancelTransaction } from '../composables/useSafe';
 
   const props = defineProps({
-    transactions: Array,
-    title: String,
-    showAction: String,
-    dateTitle: String,
-    dateFormater: Function,
-    blockexplorer: Object,
-    disabled: Function
+    transactions: {
+      type: Array,
+      required: true
+    },
+    title: {
+      type: String,
+      required: true
+    },
+    showAction: {
+      type: Boolean,
+      default: false
+    },
+    dateTitle: {
+      type: String,
+      required: true
+    },
+    dateFormater: {
+      type: Function,
+      required: true
+    },
+    blockexplorer: {
+      type: Object,
+      required: true
+    },
+    disabled: {
+      type: Function,
+      default: null
+    }
   })
   
   function cancel(txHash, timestamp) {

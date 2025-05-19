@@ -8,6 +8,7 @@
   import { version } from "../package.json";
   import versions from "./composables/versions.json";
   
+  const newProvider = ref(null);
   const safeInfo = ref(null);
   const guardInfo = ref({address: null});
   const guardInfoOld = {};

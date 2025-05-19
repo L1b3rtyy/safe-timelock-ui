@@ -7,7 +7,10 @@
   import myTooltip from './myTooltip.vue';
   
   const props = defineProps({
-    text: String
+    text: {
+      type: String,
+      required: true
+    }
   })
   
   const copyTooltip = ref(null);
