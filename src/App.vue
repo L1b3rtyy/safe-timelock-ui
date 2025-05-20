@@ -162,6 +162,10 @@ M:  for (let i = 0; i < array.length; i++) {
         console.log('App._loadGuardData - proxyData=', proxyData);
         guardInfo.value.proxyData = proxyData; 
       })
+      .catch(error => {
+        console.error("App._loadGuardData", error);
+        setAndResetMsgGuard("Error loading proxy data: " + error.message);
+      })
     ])
     .then(() => {
       resetEdit();
@@ -283,7 +287,7 @@ M:  for (let i = 0; i < array.length; i++) {
             </td>
             <td v-else-if="!settingGuard">
               <span style="color: red;">GUARD NOT SET ⚠️</span>
-              <myTooltip @click="resetEdit();settingGuard=true" icon="fa-solid fa-edit" text="Set Guard"/>\
+              <myTooltip @click="resetEdit();settingGuard=true" icon="fa-solid fa-edit" text="Set Guard"/>
             </td>
             <td v-else>
               <input :disabled="addingGuard" v-model.lazy="mewGuardAddress" type="text" placeholder="Enter Guard address" style="width: 85%;"/>
@@ -291,7 +295,7 @@ M:  for (let i = 0; i < array.length; i++) {
                 <myTooltip @click="resetEdit();addingGuard=true; changeGuard(setGuard(false, mewGuardAddress))" icon="fa-solid fa-save" text="Set Guard to this one"/>
                 <myTooltip @click="resetEdit()" icon="fa-solid fa-cancel" text="Cancel"/>
               </span>
-              <myTooltip @click="addingGuard=false" icon="fa-solid fa-edit" text="Edit again"/>
+              <myTooltip v-else @click="addingGuard=false" icon="fa-solid fa-edit" text="Edit again"/>
             </td>
           </tr>
           <tr v-if="guardInfo.proxyData">
