@@ -1,5 +1,6 @@
 [
   {"version":"1.0.0", "address": "0x1c51eb09730e5f6710b8A4192e54F646058BAD5b"},
   {"version":"1.1.0", "address": "0x1300Ba2Bd3ab957ec7caa3120d2605951a7E19C4"},
-  {"version":"1.1.1", "address": "0xe508A96611cfDC1828fDd3ba82c61665B6063A8b"}
+  {"version":"1.1.1", "address": "0xe508A96611cfDC1828fDd3ba82c61665B6063A8b"},
+  {"version":"1.2.0", "address": "0x16Be677756C52Cb55E38d1a3661b7060b850edB5"}
 ]

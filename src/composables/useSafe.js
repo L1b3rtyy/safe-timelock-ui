@@ -75,17 +75,16 @@ async function loadConfig() {
   if(!contract) return null;
   return Promise.all([contract.timelockConfig(), contract.quorumCancel().catch(()=>0), contract.quorumExecute().catch(()=>0)])
   .then(([timelockConfig, quorumCancel, quorumExecute]) => ({
-    throttle: timelockConfig.throttle.toNumber(),
     limitNoTimelock: ethers.utils.formatEther(timelockConfig.limitNoTimelock),
     timelockDuration: timelockConfig.timelockDuration.toNumber(),
     quorumCancel: quorumCancel && quorumCancel.toNumber(),
     quorumExecute: quorumExecute && quorumExecute.toNumber()
   }))
 }
-export function setConfig(timelockDuration, throttle, limitNoTimelock, quorumCancel, quorumExecute, clearHashes) {
-  console.log("setConfig - [timelockDuration, throttle, limitNoTimelock, quorumCancel, quorumExecute, clearHashes]=" + [timelockDuration, throttle, limitNoTimelock, quorumCancel, quorumExecute, clearHashes]);
-  return queueTransactionHelper(guardAddress, '0', 'function setConfig(uint64 timelockDuration, uint64 throttle, uint128 limitNoTimelock, uint8 _quorumCancel, uint8 _quorumExecute, bytes32[] clearHashes)',
-    "setConfig", [timelockDuration, throttle, ethers.utils.parseEther(limitNoTimelock.toString()).toString(), quorumCancel, quorumExecute, clearHashes || []])
+export function setConfig(timelockDuration, limitNoTimelock, quorumCancel, quorumExecute, clearHashes) {
+  console.log("setConfig - [timelockDuration, limitNoTimelock, quorumCancel, quorumExecute, clearHashes]=" + [timelockDuration, limitNoTimelock, quorumCancel, quorumExecute, clearHashes]);
+  return queueTransactionHelper(guardAddress, '0', 'function setConfig(uint64 timelockDuration, uint128 limitNoTimelock, uint8 _quorumCancel, uint8 _quorumExecute, bytes32[] clearHashes)',
+    "setConfig", [timelockDuration, ethers.utils.parseEther(limitNoTimelock.toString()).toString(), quorumCancel, quorumExecute, clearHashes || []])
 }
 function queueTransactionHelper(to, value, abi, functionName, args) {
   return queueTransaction(to, value, buildTxDate(abi, functionName, args))
@@ -229,7 +228,7 @@ function getQueueTxData(event) {
   }));
 }
 function getSetConfigTxData(event) {
-  return _getTransactionData(event, 'function setConfig(uint64 timelockDuration, uint64 throttle, uint128 limitNoTimelock, uint8 _quorumCancel, uint8 _quorumExecute, bytes32[] clearHashes)', 'setConfig')
+  return _getTransactionData(event, 'function setConfig(uint64 timelockDuration, uint128 limitNoTimelock, uint8 _quorumCancel, uint8 _quorumExecute, bytes32[] clearHashes)', 'setConfig')
   .then(guardTx => ({ clearHashes: guardTx.clearHashes }));
 }
 function geCancelTxData(event) {

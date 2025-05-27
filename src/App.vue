@@ -66,13 +66,12 @@ M:  for (let i = 0; i < array.length; i++) {
     resetEdit();
     msgConfig.value = "";
     if(editingConfig.value) {
-      if(guardInfoOld.throttle != guardInfo.value.throttle 
-      || guardInfoOld.limitNoTimelock != guardInfo.value.limitNoTimelock 
+      if(guardInfoOld.limitNoTimelock != guardInfo.value.limitNoTimelock 
       || guardInfoOld.timelockDuration != guardInfo.value.timelockDuration
       || guardInfoOld.quorumCancel != guardInfo.value.quorumCancel
       || guardInfoOld.quorumExecute != guardInfo.value.quorumExecute) {
         console.log('App.edidConfig - new config');
-        setConfig(guardInfo.value.timelockDuration, guardInfo.value.throttle, guardInfo.value.limitNoTimelock, guardInfo.value.quorumCancel, guardInfo.value.quorumExecute, 
+        setConfig(guardInfo.value.timelockDuration, guardInfo.value.limitNoTimelock, guardInfo.value.quorumCancel, guardInfo.value.quorumExecute, 
           arrayUnique((guardInfo.value.timelockDuration == 0 ? transactions.value : transactions.value.filter(t => t.state == STATES.QUEUED && t.value <= guardInfo.value.limitNoTimelock)).map(t => t.txHash))
         )
         .then(() => {
@@ -80,10 +79,9 @@ M:  for (let i = 0; i < array.length; i++) {
           setAndResetMsgConfig("Transaction sent");
         })
         .catch(error =>  {
-          console.error("App.edidConfig", guardInfo.value.timelockDuration, guardInfo.value.throttle, guardInfo.value.limitNoTimelock, error);
+          console.error("App.edidConfig", guardInfo.value.timelockDuration, guardInfo.value.limitNoTimelock, error);
           msgConfig.value = "Error setting config: " + error.message;
         })
-        guardInfo.value.throttle = guardInfoOld.throttle;
         guardInfo.value.limitNoTimelock = guardInfoOld.limitNoTimelock;
         guardInfo.value.timelockDuration = guardInfoOld.timelockDuration;
       }
@@ -179,15 +177,14 @@ M:  for (let i = 0; i < array.length; i++) {
   }
   function updateConfig(timelockConfig, loadGuard) {
     console.log('App.updateConfig - loadGuard=' + loadGuard + ', config loaded=', timelockConfig);
-    if(timelockConfig && (timelockConfig.throttle != guardInfo.value.throttle || timelockConfig.limitNoTimelock != guardInfo.value.limitNoTimelock || timelockConfig.timelockDuration != guardInfo.value.timelockDuration)) {
-      guardInfoOld.throttle = guardInfo.value.throttle = timelockConfig.throttle;
+    if(timelockConfig && (timelockConfig.limitNoTimelock != guardInfo.value.limitNoTimelock || timelockConfig.timelockDuration != guardInfo.value.timelockDuration)) {
       guardInfoOld.limitNoTimelock = guardInfo.value.limitNoTimelock = timelockConfig.limitNoTimelock;
       guardInfoOld.timelockDuration = guardInfo.value.timelockDuration = timelockConfig.timelockDuration;
       guardInfoOld.quorumCancel = guardInfo.value.quorumCancel = timelockConfig.quorumCancel;
       guardInfoOld.quorumExecute = guardInfo.value.quorumExecute = timelockConfig.quorumExecute;
       !loadGuard && setAndResetMsgConfig("Config updated");
     }
-    else guardInfoOld.throttle = guardInfo.value.throttle = guardInfoOld.limitNoTimelock = guardInfo.value.limitNoTimelock = guardInfoOld.timelockDuration = guardInfo.value.timelockDuration = null;
+    else guardInfoOld.limitNoTimelock = guardInfo.value.limitNoTimelock = guardInfoOld.timelockDuration = guardInfo.value.timelockDuration = null;
   }
   function changeGuard(promise) {
     promise.catch(error => {
@@ -350,10 +347,6 @@ M:  for (let i = 0; i < array.length; i++) {
             <tr>
               <td colspan="2" style="text-align: left;">Time lock duration</td>
               <td><input :disabled="!editingConfig" v-model.number="guardInfo.timelockDuration" type="number" min="1" max="1209600" class="narrow"/></td>
-            </tr>
-            <tr>
-              <td colspan="2" style="text-align: left;">Throttle</td>
-              <td><input :disabled="!editingConfig" v-model.number="guardInfo.throttle" min="0" max="3600" type="number" class="narrow"/></td>
             </tr>
             <tr>
               <td colspan="2" style="text-align: left;">Timelock limit value</td>
