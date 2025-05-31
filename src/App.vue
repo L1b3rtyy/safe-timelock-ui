@@ -39,6 +39,10 @@
     if(guardInfo.value.proxyData && guardInfo.value.proxyData.proxy.imp != guardInfo.value.proxyData.admin.imp) res.push("Mismatch between Guard proxy and admin on imp value (proxy=> " + guardInfo.value.proxyData.proxy.imp + ", admin=> " + guardInfo.value.proxyData.admin.imp + ")");
     return res;
   })
+  const compatibleSafeVersion = computed(() => {
+    if(!guardInfo.value.testedSafeVersions) return false
+    return guardInfo.value.testedSafeVersions.split("|").findIndex(v => safeInfo.value.version.startsWith(v)) != -1; // startsWith because some safe versions have a suffix like "+L2"
+  });
 
   function formatDate(timestamp) {
     if (!timestamp || timestamp === 0) return '—'
@@ -115,9 +119,10 @@ M:  for (let i = 0; i < array.length; i++) {
         guardInfo.value.proxyData.proxy.imp = implementation;
         guardInfo.value.proxyData.admin.imp = implementation;
         getGuardVersion(implementation)
-        .then(version => {
-          console.log('App.eventListenerProxy - Guard version=', version);
+        .then(([version, testedSafeVersions]) => {
+          console.log('App.eventListenerProxy - [version, testedSafeVersions]=', [version, testedSafeVersions]);
           guardInfo.value.version = version;
+          guardInfo.value.testedSafeVersions = testedSafeVersions;
           setAndResetMsgGuard("Guard implementation upgraded to version " + version + " (contract="+ implementation + ")");
         })
         .catch(error => {
@@ -155,7 +160,11 @@ M:  for (let i = 0; i < array.length; i++) {
           errorLoadGuard.value = "Guard address does not match safe address";
         }
       }),
-      p_version.then(version => guardInfo.value.version = version),
+      p_version.then(([version, testedSafeVersions]) => {
+        console.log('App._loadGuardData - [version, testedSafeVersions]=', [version, testedSafeVersions]);
+        guardInfo.value.version = version;
+        guardInfo.value.testedSafeVersions = testedSafeVersions;
+      }),
       p_proxy.then(proxyData => {
         console.log('App._loadGuardData - proxyData=', proxyData);
         guardInfo.value.proxyData = proxyData; 
@@ -224,8 +233,8 @@ M:  for (let i = 0; i < array.length; i++) {
   onMounted(async () => {
     try {
       console.log('App.onMounted - connecting to Safe');
-      const {network, chainId, safeAddress, guardAddress, chainInfoPromise, buildInProvider, version} = await initSafe();
-      safeInfo.value = {network, chainId, safeAddress, provider: buildInProvider && "BUILD IN", version};
+      const {network, chainId, safeAddress, guardAddress, chainInfoPromise, buildInProvider, version, threshold, owners} = await initSafe();
+      safeInfo.value = {network, chainId, safeAddress, provider: buildInProvider && "BUILD IN", version, threshold, owners};
       
       console.log('App.onMounted - load Guard data');
       _loadGuardData(guardAddress);
@@ -317,7 +326,7 @@ M:  for (let i = 0; i < array.length; i++) {
           </tr>
           <tr>
             <td colspan="2" style="text-align: left;">Versions</td>
-            <td>UI v{{version}} - Safe v{{ safeInfo.version }}<span v-if="guardInfo.version"> - Guard v{{ guardInfo.version }}</span></td>
+            <td>UI v{{version}}<span v-if="guardInfo.version"> - Guard v{{ guardInfo.version }}</span></td>
           </tr>
           <tr>
             <td colspan="2" style="text-align: left;">Network</td>
@@ -344,6 +353,18 @@ M:  for (let i = 0; i < array.length; i++) {
         </table>
         <form @submit.prevent="editConfig()">
           <table v-if="guardInfo.address" class="status-table">
+            <tr>
+              <td colspan="3" style="text-align: center;">
+                Safe {{safeInfo.threshold + "/" + safeInfo.owners.length}} v{{ safeInfo.version }}
+                <span v-if="guardInfo.testedSafeVersions">
+                  <myTooltip v-if="compatibleSafeVersion" emoji="✅" text="Guard was tested for this Safe's version"/>
+                  <myTooltip v-else emoji="⚠️" :text="'Guard not tested on this Safe\'s version (tested on ' + guardInfo.testedSafeVersions + ')'"/> 
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="3" style="text-align: left; border-left: none; border-right: none;"/>
+            </tr>
             <tr>
               <td colspan="2" style="text-align: left;">Time lock duration</td>
               <td><input :disabled="!editingConfig" v-model.number="guardInfo.timelockDuration" type="number" min="1" max="1209600" class="narrow"/></td>

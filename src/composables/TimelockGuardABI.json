@@ -22,16 +22,6 @@
       "type": "error"
     },
     {
-      "inputs": [],
-      "name": "InvalidInitialization",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "NotInitializing",
-      "type": "error"
-    },
-    {
       "inputs": [
         {
           "internalType": "bytes32",
@@ -97,19 +87,6 @@
     },
     {
       "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "uint64",
-          "name": "version",
-          "type": "uint64"
-        }
-      ],
-      "name": "Initialized",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
       "inputs": [],
       "name": "TimelockConfigChanged",
       "type": "event"
@@ -170,6 +147,19 @@
       "inputs": [],
       "name": "TransactionsCleared",
       "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "TESTED_SAFE_VERSIONS",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     },
     {
       "inputs": [],
@@ -249,27 +239,27 @@
         },
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "safeTxGas",
           "type": "uint256"
         },
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "baseGas",
           "type": "uint256"
         },
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "gasPrice",
           "type": "uint256"
         },
         {
           "internalType": "address",
-          "name": "",
+          "name": "gasToken",
           "type": "address"
         },
         {
           "internalType": "address payable",
-          "name": "",
+          "name": "refundReceiver",
           "type": "address"
         },
         {
@@ -284,39 +274,6 @@
         }
       ],
       "name": "checkTransaction",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_safe",
-          "type": "address"
-        },
-        {
-          "internalType": "uint64",
-          "name": "timelockDuration",
-          "type": "uint64"
-        },
-        {
-          "internalType": "uint128",
-          "name": "limitNoTimelock",
-          "type": "uint128"
-        },
-        {
-          "internalType": "uint8",
-          "name": "_quorumCancel",
-          "type": "uint8"
-        },
-        {
-          "internalType": "uint8",
-          "name": "_quorumExecute",
-          "type": "uint8"
-        }
-      ],
-      "name": "initialize",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

@@ -51,7 +51,7 @@ export async function initSafe() {
   safeAddress = safeInfo.safeAddress;
   if(window.ethereum)
     provider = new ethers.providers.Web3Provider(window.ethereum);
-  return {network: safeInfo.network, chainId: safeInfo.chainId, chainInfoPromise, version: safeInfo.version, guardAddress: safeInfo.guard, safeAddress, buildInProvider: Boolean(window.ethereum)};
+  return {threshold: safeInfo.threshold, owners: safeInfo.owners, network: safeInfo.network, chainId: safeInfo.chainId, chainInfoPromise, version: safeInfo.version, guardAddress: safeInfo.guard, safeAddress, buildInProvider: Boolean(window.ethereum)};
 }
 function getEventTime(event) {
   return provider && provider.getBlock(event.blockNumber).then(block => block.timestamp);
@@ -140,7 +140,7 @@ export function loadGuardData(_guardAddress, eventListenerProxy) {
 }
 export async function getGuardVersion() {
   if(!contract) return null;
-  return contract.VERSION();
+  return Promise.all([contract.VERSION(), contract.TESTED_SAFE_VERSIONS()]);
 }
 let contractsOldProxy = null;
 export async function getProxyDetails(proxyAddress, eventListenerProxy) {
