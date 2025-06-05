@@ -1,7 +1,7 @@
 {
   "name": "safe-timelock-ui",
   "private": true,
-  "version": "0.0.197",
+  "version": "0.0.281",
   "type": "module",
   "scripts": {
     "prebuild": "node check-version.js",
@@ -16,6 +16,7 @@
     "@fortawesome/free-solid-svg-icons": "^6.7.2",
     "@fortawesome/vue-fontawesome": "^3.0.8",
     "@openzeppelin/upgrades-core": "^1.44.0",
+    "@safe-global/protocol-kit": "^6.0.4",
     "@safe-global/safe-apps-sdk": "^9.1.0",
     "buffer": "^6.0.3",
     "ethers": "^5.8.0",

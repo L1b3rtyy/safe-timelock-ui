@@ -10,7 +10,7 @@ let guardAddress;
 let safeAddress;
 let provider;
 let contract;
-const zeroAd = '0x0000000000000000000000000000000000000000';
+export const zeroAddress = '0x0000000000000000000000000000000000000000';
 
 const sdk = new SafeAppsSDK({ allowedDomains: [/app\.safe\.global$/] });
 export const STATES = {QUEUED: 0, CANCELED: 1, EXECUTED: 2, CLEARED: 3};
@@ -20,6 +20,12 @@ const EVENT_NAMES = {
   CLEARED: "TransactionCleared",
   CLEARED_HASHES: "TransactionsCleared",
   EXECUTED: "TransactionExecuted"
+}
+export const SAFE_EVENT_NAMES = {
+  CHANGED_GUARD: "ChangedGuard",
+  ADDED_OWNER: "AddedOwner",
+  CHANGED_THRESHOLD: "ChangedThreshold",
+  REMOVED_OWNER: "RemovedOwner"
 }
 export const EVENT_NAMES_PROXY = {
   ADMIN_CHANGED: "AdminChanged",
@@ -39,7 +45,7 @@ export function defineListenersGuard(transactions, configCallback) {
 export function defineListenersSafe(callback) {
   if(provider) {
     const safeContract = new ethers.Contract(safeAddress, safeABI, provider);
-    safeContract.on("ChangedGuard", ad => callback(ad == zeroAd ? null : ad));
+    Object.values(SAFE_EVENT_NAMES).forEach(eventName => safeContract.on(eventName, (...args) => callback(...args)));
   }
 }
 export async function initSafe() {
@@ -61,24 +67,25 @@ export async function executeTransaction(to, value, data) {
   const txs = await sdk.txs.send({txs: [{ to, value: ethers.utils.parseEther(value).toString(), data}]} );
   return txs.safeTxHash;
 }
-function buildTxDate(moduleAbi, functionName, args) {
-  console.log("buildTxDate - [moduleAbi, functionName]=" + [moduleAbi, functionName]);
+export function buildTxData(moduleAbi, functionName, args) {
+  console.log("buildTxData - [moduleAbi, functionName]=" + [moduleAbi, functionName]);
   const iface = new ethers.utils.Interface([moduleAbi]);
-  console.log("buildTxDate - create data");
+  console.log("buildTxData - create data");
   return iface.encodeFunctionData(functionName, args);
 }
 function executeTransactionHelper(to, moduleAbi, functionName, args) {
   console.log("executeTransaction - [functionName, args]=" + [functionName, args]);
-  return executeTransaction(to, '0', buildTxDate(moduleAbi, functionName, args))
+  return executeTransaction(to, '0', buildTxData(moduleAbi, functionName, args))
 }
 async function loadConfig() {
+  console.log("loadConfig - contract=" + Boolean(contract));
   if(!contract) return null;
   return Promise.all([contract.timelockConfig(), contract.quorumCancel().catch(()=>0), contract.quorumExecute().catch(()=>0)])
   .then(([timelockConfig, quorumCancel, quorumExecute]) => ({
     limitNoTimelock: ethers.utils.formatEther(timelockConfig.limitNoTimelock),
     timelockDuration: timelockConfig.timelockDuration.toNumber(),
-    quorumCancel: quorumCancel && quorumCancel.toNumber(),
-    quorumExecute: quorumExecute && quorumExecute.toNumber()
+    quorumCancel,
+    quorumExecute
   }))
 }
 export function setConfig(timelockDuration, limitNoTimelock, quorumCancel, quorumExecute, clearHashes) {
@@ -87,7 +94,7 @@ export function setConfig(timelockDuration, limitNoTimelock, quorumCancel, quoru
     "setConfig", [timelockDuration, ethers.utils.parseEther(limitNoTimelock.toString()).toString(), quorumCancel, quorumExecute, clearHashes || []])
 }
 function queueTransactionHelper(to, value, abi, functionName, args) {
-  return queueTransaction(to, value, buildTxDate(abi, functionName, args))
+  return queueTransaction(to, value, buildTxData(abi, functionName, args))
 }
 export function queueTransaction(to, value, data) {
   return executeTransactionHelper(guardAddress, 'function queueTransaction(address to, uint256 value, bytes calldata data, uint8 operation)', "queueTransaction", [to, ethers.utils.parseEther(value.toString()).toString(), data, 0])
@@ -113,7 +120,7 @@ export async function setGuard(existingTimelockGuard, mewGuardAddress) {
   }
   const safeAbi = 'function setGuard(address guard)'
   const functionName = "setGuard";
-  const args = [mewGuardAddress || zeroAd];
+  const args = [mewGuardAddress || zeroAddress];
   if(existingTimelockGuard)
     return queueTransactionHelper(safeAddress, '0', safeAbi, functionName, args)
   else
@@ -154,8 +161,8 @@ export async function getProxyDetails(proxyAddress, eventListenerProxy) {
 
   console.log("getProxyDetails - [implAdd, adminAdd]=" + [implAdd, adminAdd]);
 
-  const isProxy = implAdd !== zeroAd;
-  const isTransparent = adminAdd !== zeroAd;
+  const isProxy = implAdd !== zeroAddress;
+  const isTransparent = adminAdd !== zeroAddress;
 
   if (isProxy && isTransparent) {
     console.log("getProxyDetails - ✅ This is a Transparent Proxy");

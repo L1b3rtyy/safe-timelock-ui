@@ -2,6 +2,7 @@
   import myTooltip from './myTooltip.vue';
   import Copy from './Copy.vue';
   import { executeTransaction, cancelTransaction } from '../composables/useSafe';
+  import { addressDisplay, truncate } from "./utils.js";
 
   const props = defineProps({
     transactions: {
@@ -31,21 +32,24 @@
     disabled: {
       type: Function,
       default: null
+    },
+    canCancel: {
+      type: Boolean,
+      default: false
     }
   })
   
+  const emit = defineEmits(['cancel'])
+
   function cancel(txHash, timestamp) {
     const timestampPos = props.transactions.filter(tx => tx.txHash == txHash).findIndex(tx => tx.actiondate == timestamp)
-    return cancelTransaction(txHash, timestampPos, timestamp);
-  }
+    if(props.canCancel)
+      return cancelTransaction(txHash, timestampPos, timestamp);
+    else
+      emit('cancel', txHash, timestampPos, timestamp) 
+    }
   function execute(tx) {
     return executeTransaction(tx.to, tx.value, tx.data);
-  }
-  function truncate(str, length) {
-    return str && (str.length < length + 3 ? str : str.substring(0,length) + "...");
-  }
-  function shorten(str, length) {
-    return str && (str.length < 2*length + 5 ? str : str.substring(0,length+2) + "..." + str.substring(str.length-length,str.length));
   }
 </script>
 
@@ -68,11 +72,11 @@
       <tbody>
         <tr v-for="tx in transactions" :key="tx.txHash">
           <td>
-            <a :href="blockexplorer && blockexplorer.txHash.replace('\{\{txHash\}\}', tx.realHash)">{{ shorten(tx.realHash, 8) }}</a>
+            <a :href="blockexplorer && blockexplorer.txHash.replace('\{\{txHash\}\}', tx.realHash)">{{ addressDisplay(tx.realHash) }}</a>
             <Copy :text="tx.realHash" />
           </td>
           <td>
-            <a :href="blockexplorer && blockexplorer.address.replace('\{\{address\}\}', tx.to)">{{ shorten(tx.to, 8) }}</a>
+            <a :href="blockexplorer && blockexplorer.address.replace('\{\{address\}\}', tx.to)">{{ addressDisplay(tx.to) }}</a>
             <Copy :text="tx.to" />
           </td>
           <td>{{ tx.value }}</td>

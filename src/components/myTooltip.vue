@@ -2,7 +2,7 @@
   <div class="tooltip" :style="'margin-left: ' + margin + ';' + (hasClick && 'cursor: pointer;')">
     <font-awesome-icon v-if="icon" :icon="icon" />
     <span v-else>{{ emoji }}</span>
-    <span :style="forcetext && 'visibility: visible;'" class="tooltiptext">{{ forcetext || text }}</span>
+    <span v-if="forcetext || text" :style="forcetext && 'visibility: visible;'" class="tooltiptext">{{ forcetext || text }}</span>
   </div>
 </template>
 

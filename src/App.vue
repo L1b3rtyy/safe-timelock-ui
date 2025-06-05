@@ -1,13 +1,14 @@
 <!-- src/App.vue -->
 <script setup>
   import myTooltip from './components/myTooltip.vue';
-  import QueueTransaction from './components/QueueTransaction.vue';
+  import TransactionAction from './components/TransactionAction.vue';
   import Transactions from './components/Transactions.vue';
-  import { getProxyDetails, loadGuardData, getGuardVersion, defineListenersGuard, STATES, EVENT_NAMES_PROXY, initSafe, setConfig, setGuard, defineListenersSafe, upgradeGuard, setProvider } from './composables/useSafe.js';
-  import { ref, onMounted, computed  } from 'vue';
+  import { zeroAddress, getProxyDetails, loadGuardData, getGuardVersion, defineListenersGuard, SAFE_EVENT_NAMES, STATES, EVENT_NAMES_PROXY, initSafe, setConfig, setGuard, defineListenersSafe, upgradeGuard, setProvider } from './composables/useSafe.js';
+  import { ref, onMounted, computed, useTemplateRef  } from 'vue';
   import { version } from "../package.json";
   import versions from "./composables/versions.json";
   
+  const transactionAction = useTemplateRef(null);
   const newProvider = ref(null);
   const safeInfo = ref(null);
   const guardInfo = ref({address: null});
@@ -66,14 +67,14 @@ M:  for (let i = 0; i < array.length; i++) {
     msgGuard.value = text;
     setTimeout(() => msgGuard.value = "", userMsgDuration);
   }
-  function editConfig() {
-    resetEdit();
+  function editConfig() { 
+    resetEdit(editingConfig.value);
     msgConfig.value = "";
     if(editingConfig.value) {
       if(guardInfoOld.limitNoTimelock != guardInfo.value.limitNoTimelock 
-      || guardInfoOld.timelockDuration != guardInfo.value.timelockDuration
-      || guardInfoOld.quorumCancel != guardInfo.value.quorumCancel
-      || guardInfoOld.quorumExecute != guardInfo.value.quorumExecute) {
+        || guardInfoOld.timelockDuration != guardInfo.value.timelockDuration
+        || guardInfoOld.quorumCancel != guardInfo.value.quorumCancel
+        || guardInfoOld.quorumExecute != guardInfo.value.quorumExecute) {
         console.log('App.edidConfig - new config');
         setConfig(guardInfo.value.timelockDuration, guardInfo.value.limitNoTimelock, guardInfo.value.quorumCancel, guardInfo.value.quorumExecute, 
           arrayUnique((guardInfo.value.timelockDuration == 0 ? transactions.value : transactions.value.filter(t => t.state == STATES.QUEUED && t.value <= guardInfo.value.limitNoTimelock)).map(t => t.txHash))
@@ -86,12 +87,16 @@ M:  for (let i = 0; i < array.length; i++) {
           console.error("App.edidConfig", guardInfo.value.timelockDuration, guardInfo.value.limitNoTimelock, error);
           msgConfig.value = "Error setting config: " + error.message;
         })
-        guardInfo.value.limitNoTimelock = guardInfoOld.limitNoTimelock;
-        guardInfo.value.timelockDuration = guardInfoOld.timelockDuration;
+        .finally(() => {
+          guardInfo.value.limitNoTimelock = guardInfoOld.limitNoTimelock;
+          guardInfo.value.timelockDuration = guardInfoOld.timelockDuration;
+          guardInfo.value.quorumCancel = guardInfoOld.quorumCancel;
+          guardInfo.value.quorumExecute = guardInfoOld.quorumExecute;
+        })
       }
       else setAndResetMsgConfig("Same config!");
     }
-    editingConfig.value = !editingConfig.value;
+    editingConfig.value = !(editingConfig.value);
   }
   function eventListenerProxy(eventName, ...args) {
     console.log('App.eventListenerProxy - eventName=' + eventName + ', args=', args);
@@ -211,7 +216,7 @@ M:  for (let i = 0; i < array.length; i++) {
         console.log('App.setProvider - load Guard data');
         _loadGuardData(guardInfo.value.address);
         console.log('App.setProvider - define safe listener');
-        defineListenersSafe(guardAddress => _loadGuardData(guardAddress));
+        defineListenersSafe((...args) => safeListener(...args));
       }
     })
     .catch(error => {
@@ -220,9 +225,33 @@ M:  for (let i = 0; i < array.length; i++) {
     })
     .finally(() => settingProviderCall.value = false)
   }
-  function resetEdit() {
+  function safeListener(...args) {
+    const event = args[args.length-1];
+    console.log('safeListener - [eventName, data]=' + [event.event, args[0]]);
+    switch(event.event) {
+      case SAFE_EVENT_NAMES.CHANGED_GUARD:
+        console.log('safeListener - Guard changed, loading new Guard data');
+        return _loadGuardData((args[0]==zeroAddress) ? null : args[0]);
+      case SAFE_EVENT_NAMES.CHANGED_THRESHOLD:
+        console.log('safeListener - Threshold changed, updating Safe info');
+        safeInfo.value.threshold = args[0];
+        break;
+      case SAFE_EVENT_NAMES.ADDED_OWNER:
+        console.log('safeListener - Owner added, updating Safe info');
+        safeInfo.value.owners.push(args[0]);
+        break;
+      case SAFE_EVENT_NAMES.REMOVED_OWNER:
+        console.log('safeListener - Owner removed, updating Safe info');
+        const index = safeInfo.value.owners.indexOf(args[0]);
+        if(index != -1)
+          safeInfo.value.owners.splice(index, 1);
+        else console.error("safeListener - Owner not found in Safe owners list, cannot remove it");
+        break;
+    }
+  }
+  function resetEdit(editingConfigV) {
     console.log('App.resetEdit - reset edit');
-    editingConfig.value = false;
+    editingConfig.value = Boolean(editingConfigV);
     addingGuard.value = false;
     settingGuard.value = false;
     settingProvider.value = false;
@@ -239,8 +268,8 @@ M:  for (let i = 0; i < array.length; i++) {
       console.log('App.onMounted - load Guard data');
       _loadGuardData(guardAddress);
       
-      console.log('App.onMounted - define safe listener');
-      defineListenersSafe(guardAddress => _loadGuardData(guardAddress));
+      console.log('App.setProvider - define safe listener');
+      defineListenersSafe((...args) => safeListener(...args));
       console.log('App.onMounted - set time updates');
       setInterval(() => currentTime.value = Date.now()/1000,1000);
       
@@ -376,11 +405,18 @@ M:  for (let i = 0; i < array.length; i++) {
             <tr>
               <td rowspan="2" style="text-align: left;">Min quorum</td>
               <td style="text-align: left;">Cancel</td>
-              <td ><input :disabled="!editingConfig" v-model.number="guardInfo.quorumCancel" type="number" min="0" step="any" class="narrow"/></td>
+              <td >
+                <input :disabled="!editingConfig" v-model.number="guardInfo.quorumCancel" type="number" min="0" step="any" class="narrow"/>
+                <myTooltip emoji="✅" :text="guardInfoOld.quorumCancel > safeInfo.threshold ? 'Cancellation requires ' + guardInfoOld.quorumCancel + ' signers' : 'Cancellation enabled by default'" />
+              </td>
             </tr>
             <tr>
               <td style="text-align: left;">Execute</td>
-              <td ><input :disabled="!editingConfig" v-model.number="guardInfo.quorumExecute" type="number" min="0" step="any" class="narrow"/></td>
+              <td>
+                <input :disabled="!editingConfig" v-model.number="guardInfo.quorumExecute" type="number" min="0" step="any" class="narrow"/>
+                <myTooltip v-if="guardInfoOld.quorumExecute > safeInfo.threshold" emoji="✅" text="Direct execution enabled" />
+                <myTooltip v-else emoji="⏸️" text="Direct execution disabled" />
+              </td>
             </tr>
             <tr>
               <td colspan="3">
@@ -415,9 +451,10 @@ M:  for (let i = 0; i < array.length; i++) {
             {{ errorLoadGuard }}
           </div>
           <div v-else class="app-container">
-            <QueueTransaction/>
-            <Transactions :transactions="transactions.filter(t=>t.state==STATES.QUEUED)" :showAction="true" :disabled="tx => currentTime < (tx.actiondate + guardInfo.timelockDuration)"
-              :blockexplorer="blockexplorer" :dateFormater="tx => formatDate(tx.actiondate + guardInfo.timelockDuration)" dateTitle="Execute after" title="Queued Transactions" />
+            <TransactionAction :threshold="safeInfo.threshold" :quorumExecute="guardInfoOld.quorumExecute" :quorumCancel="guardInfoOld.quorumCancel" :safeAddress="safeInfo.safeAddress" :owners="safeInfo.owners" ref="transactionAction"/>
+            <Transactions :transactions="transactions.filter(t=>t.state==STATES.QUEUED)" :canCancel="guardInfoOld.quorumCancel <= safeInfo.threshold" :showAction="true" :disabled="tx => currentTime < (tx.actiondate + guardInfo.timelockDuration)"
+              :blockexplorer="blockexplorer" :dateFormater="tx => formatDate(tx.actiondate + guardInfo.timelockDuration)" dateTitle="Execute after" title="Queued Transactions"
+              @cancel="(txHash, timestampPos, timestamp) => transactionAction.cancelTransaction(guardInfo.address, txHash, timestampPos, timestamp)"/>
             <Transactions :transactions="transactions.filter(t=>t.state==STATES.CANCELED)"
               :blockexplorer="blockexplorer" :dateFormater="tx => formatDate(tx.actiondate)" dateTitle="Cancelation date" title="Canceled Transactions" />
           </div>
