@@ -25,7 +25,7 @@
         <div v-if="quorumExecute > threshold">
           Execute<br>
           <button :disabled="collectingSignaturesCancel" @click="nbSignatures >= quorumExecute ? callExecuteTransaction() : addSignatureExecute()">{{directExecuteBtnTxt}}</button>
-          <myTooltip v-if="collectingSignaturesExecute && nbSignatures" @click="cancelCollectingSignatures()" icon="fa-solid fa-cancel" text="Cancel signature collection"/>
+          <myTooltip v-if="collectingSignaturesExecute" @click="status='';cancelCollectingSignatures()" icon="fa-solid fa-cancel" text="Cancel signature collection"/>
           <br>
           Signatures:
           <myTooltip :emoji="(collectingSignaturesExecute ? nbSignatures : 0)+'/'+quorumExecute" :text="collectingSignaturesExecute ? ownersSignedDisp : null"/>
@@ -33,7 +33,7 @@
         <div v-if="quorumCancel > threshold">
           Cancel<br>
           <button :disabled="collectingSignaturesExecute || !collectingSignaturesCancel" @click="nbSignatures >= quorumCancel ? callExecuteTransaction() : addSignaturehelper()">{{cancelBtnTxt}}</button>
-          <myTooltip v-if="collectingSignaturesCancel && nbSignatures" @click="cancelCollectingSignatures()" icon="fa-solid fa-cancel" text="Cancel signature collection"/>
+          <myTooltip v-if="collectingSignaturesCancel" @click="status='';cancelCollectingSignatures(true)" icon="fa-solid fa-cancel" text="Cancel signature collection"/>
           <br>
           Signatures:
           <myTooltip :emoji="(collectingSignaturesCancel ? nbSignatures : 0)+'/'+quorumCancel" :text="collectingSignaturesCancel ? ownersSignedDisp : null"/>
@@ -168,11 +168,18 @@ async function addSignaturehelper() {
     setTimeout(() => status.value = '', 10000);
   }
 }
-function cancelCollectingSignatures() {
+function cancelCollectingSignatures(clear) {
   collectingSignaturesExecute.value = false;
   collectingSignaturesCancel.value = false;
   tx.value = null;
   ownersSigned.value = [];
+  if(clear)
+    clearFields();
+}
+function clearFields() {
+  to.value = '';
+  value.value = 0;
+  data.value = '0x';
 }
 async function cancelTransaction(guardAddress, txHash, timestampPos, timestamp) {
   to.value = guardAddress;
@@ -268,6 +275,14 @@ button {
   border: none;
   border-radius: 4px;
   cursor: pointer;
+}
+/* disabled state */
+button:disabled,          /* works on <button disabled> */
+button[disabled] {        /* covers v-bind:disabled in Vue */
+  background: #c0c0c0;    /* light grey */
+  color: #6b6b6b;         /* darker grey text for contrast */
+  cursor: not-allowed;    /* shows “no” sign */
+  pointer-events: none;   /* blocks any stray clicks */
 }
 .status {
   font-size: 0.85rem;

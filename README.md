@@ -15,6 +15,8 @@ Allows:
 
 More info on how to create a Safe App: [How to create a Safe App with Safe Apps SDK and list it](https://help.safe.global/en/articles/145503-how-to-create-a-safe-app-with-safe-apps-sdk-and-list-it)
 
+Note: usage of ```quorumCancel``` and ```quorumExecute``` is limited to gathering signatures locally on the same machine. Having a Safe' like experience would require securely gathering signatures on a remote server and sharing them with the eventual executor. 
+
 ## Architecture
 
 JS framework: Vue

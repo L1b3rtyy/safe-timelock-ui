@@ -1,5 +1,4 @@
 Timelock, (subject, priority, difficulty, effort)
-- Cancel transactions with higher quorum                                                H H H + contract
 - Replace To by contact when available                                                  L L M
 - Show transactions in process (to be queued / cancelled / executed)                    M M H
 https://docs.safe.global/reference-sdk-starter-kit/safe-client/getpendingtransactions
