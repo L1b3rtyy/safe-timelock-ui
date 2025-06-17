@@ -10,6 +10,7 @@ let guardAddress;
 let safeAddress;
 let provider;
 let contract;
+let queueCallback;
 export const zeroAddress = '0x0000000000000000000000000000000000000000';
 
 const sdk = new SafeAppsSDK({ allowedDomains: [/app\.safe\.global$/] });
@@ -33,11 +34,11 @@ export const EVENT_NAMES_PROXY = {
   OWNERSHIP_TRANSFERRED: "OwnershipTransferred",
 }
 let contractOldGuard = null;
-export function defineListenersGuard(transactions, configCallback) {
+export function defineListenersGuard(transactions, configCallback, updateLastQueueTime) {
   if(contract) {
     if(contractOldGuard)
       contractOldGuard.removeAllListeners();
-    Object.values(EVENT_NAMES).forEach(eventName => contract.on(eventName, (...args) => eventListener(transactions, ...args)));
+    Object.values(EVENT_NAMES).forEach(eventName => contract.on(eventName, (...args) => eventListener(transactions, ...args).then(eventData => updateLastQueueTime(eventData))));
     contract.on("TimelockConfigChanged", () => loadConfig().then(timelockConfig => configCallback(timelockConfig)));
     contractOldGuard = contract;
   }
@@ -48,8 +49,9 @@ export function defineListenersSafe(callback) {
     Object.values(SAFE_EVENT_NAMES).forEach(eventName => safeContract.on(eventName, (...args) => callback(...args)));
   }
 }
-export async function initSafe() {
+export async function initSafe(_queueCallback) {
   console.log("initSafe - Set a timeout explicitly to avoid indefinite hangs, rejects after 3sec");
+  queueCallback = _queueCallback;
   const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout, not running inside Safe?')), 3000));
   const chainInfoPromise = sdk.safe.getChainInfo();
   const safeInfo = await Promise.race([sdk.safe.getInfo(), timeout]);
@@ -82,19 +84,24 @@ async function loadConfig() {
   if(!contract) return null;
   return Promise.all([contract.timelockConfig(), contract.quorumCancel().catch(()=>0), contract.quorumExecute().catch(()=>0)])
   .then(([timelockConfig, quorumCancel, quorumExecute]) => ({
+    throttle: timelockConfig.throttle.toNumber(),
     limitNoTimelock: ethers.utils.formatEther(timelockConfig.limitNoTimelock),
     timelockDuration: timelockConfig.timelockDuration.toNumber(),
     quorumCancel,
     quorumExecute
   }))
 }
-export function setConfig(timelockDuration, limitNoTimelock, quorumCancel, quorumExecute, clearHashes) {
-  console.log("setConfig - [timelockDuration, limitNoTimelock, quorumCancel, quorumExecute, clearHashes]=" + [timelockDuration, limitNoTimelock, quorumCancel, quorumExecute, clearHashes]);
-  return queueTransactionHelper(guardAddress, '0', 'function setConfig(uint64 timelockDuration, uint128 limitNoTimelock, uint8 _quorumCancel, uint8 _quorumExecute, bytes32[] clearHashes)',
-    "setConfig", [timelockDuration, ethers.utils.parseEther(limitNoTimelock.toString()).toString(), quorumCancel, quorumExecute, clearHashes || []])
+export async function setConfig(timelockDuration, throttle, limitNoTimelock, quorumCancel, quorumExecute, clearHashes) {
+  console.log("setConfig - [timelockDuration, throttle, limitNoTimelock, quorumCancel, quorumExecute, clearHashes]=" + [timelockDuration, throttle, limitNoTimelock, quorumCancel, quorumExecute, clearHashes]);
+  return queueTransactionHelper(guardAddress, '0', 'function setConfig(uint64 timelockDuration, uint64 throttle, uint128 limitNoTimelock, uint8 _quorumCancel, uint8 _quorumExecute, bytes32[] clearHashes)',
+    "setConfig", [timelockDuration, throttle, ethers.utils.parseEther(limitNoTimelock.toString()).toString(), quorumCancel, quorumExecute, clearHashes || []])
 }
 function queueTransactionHelper(to, value, abi, functionName, args) {
-  return queueTransaction(to, value, buildTxData(abi, functionName, args))
+  const rawData = [to, value, buildTxData(abi, functionName, args)];
+  if(!queueCallback(...rawData))
+    return queueTransaction(...rawData);
+  else
+    return false;
 }
 export function queueTransaction(to, value, data) {
   return executeTransactionHelper(guardAddress, 'function queueTransaction(address to, uint256 value, bytes calldata data, uint8 operation)', "queueTransaction", [to, ethers.utils.parseEther(value.toString()).toString(), data, 0])
@@ -195,13 +202,14 @@ async function loadTransactions() {
   if(!contract)
     return [];
   const eventsDataByName = await Promise.all(Object.values(EVENT_NAMES).map(eventName => contract.queryFilter(contract.filters[eventName]()).then(events => Promise.all(events.map(e => e && e.args && transactionBuilder(e))))));
-  const eventsData = eventsDataByName.flat().sort((a,b) => a.actiondate-b.actiondate);
+  console.log("eventsDataByName=", eventsDataByName);
+  const eventsData = eventsDataByName.flat().sort((a,b) => a.actionDate-b.actionDate);
   console.log("loadTransactions - #eventsData=" + eventsData.length);
 
   let res = [];
   for(const eventData of eventsData)
     processEvent(res, eventData);
-  return res.filter(tx => tx.state == STATES.QUEUED || tx.state == STATES.CANCELED);  
+  return res;
 }
 function getTransactionData(event) {
   switch(event.event) {
@@ -235,7 +243,7 @@ function getQueueTxData(event) {
   }));
 }
 function getSetConfigTxData(event) {
-  return _getTransactionData(event, 'function setConfig(uint64 timelockDuration, uint128 limitNoTimelock, uint8 _quorumCancel, uint8 _quorumExecute, bytes32[] clearHashes)', 'setConfig')
+  return _getTransactionData(event, 'function setConfig(uint64 timelockDuration, uint64 throttle, uint128 limitNoTimelock, uint8 _quorumCancel, uint8 _quorumExecute, bytes32[] clearHashes)', 'setConfig')
   .then(guardTx => ({ clearHashes: guardTx.clearHashes }));
 }
 function geCancelTxData(event) {
@@ -247,37 +255,42 @@ function processEvent(transactions, eventData) {
   switch(eventData.eventName) {
     case EVENT_NAMES.QUEUED:
       eventData.state = STATES.QUEUED;
+      eventData.queueDate = eventData.actionDate; 
       transactions.push(eventData);
       break;
     case EVENT_NAMES.CANCELED:
     case EVENT_NAMES.EXECUTED:
-      const transaction = transactions.find(e => e.state == STATES.QUEUED && e.txHash == eventData.txHash && e.actiondate == eventData.timestamp);
+      const transaction = transactions.find(e => e.state == STATES.QUEUED && e.txHash == eventData.txHash && e.actionDate == eventData.timestamp);
       if(!transaction)
         console.error("loadTransactions - inconsistent transaction, [txHash, timestamp]=" + [eventData.txHash, eventData.timestamp])
       else
-        transaction.state = (eventData.eventName == EVENT_NAMES.CANCELED ? STATES.CANCELED : STATES.EXECUTED);
+        updateTransaction(transaction, eventData.actionDate, (eventData.eventName == EVENT_NAMES.CANCELED ? STATES.CANCELED : STATES.EXECUTED));
       break;
     case EVENT_NAMES.CLEARED:
       for(const transaction of transactions)
         if(transaction.state == STATES.QUEUED && transaction.txHash == eventData.txHash)
-            transaction.state = STATES.CLEARED;
+            updateTransaction(transaction, eventData.actionDate, STATES.CLEARED);
       break;
     case EVENT_NAMES.CLEARED_HASHES:
       for(const transaction of transactions)
         if(transaction.state == STATES.QUEUED && eventData.clearHashes.indexOf(transaction.txHash)!=-1)
-            transaction.state = STATES.CLEARED;
+            updateTransaction(transaction, eventData.actionDate, STATES.CLEARED);
       break;
   }
+}
+function updateTransaction(transaction, actionDate, state) {
+  transaction.actionDate = actionDate;
+  transaction.state = state;
 }
 function eventListener(transactions, ...args) {
   const event = args[args.length-1];
   console.log('eventListener - eventName=' + event.event);
-  return transactionBuilder(event).then(eventData => processEvent(transactions, eventData));
+  return transactionBuilder(event).then(eventData => {processEvent(transactions, eventData); return eventData;} );
 }
 function transactionBuilder(event) {
   console.log("transactionBuilder - hash=" + event.transactionHash);
-  const p = getEventTime(event).then(actiondate => {
-    const res = {eventName: event.event, realHash: event.transactionHash, actiondate, txHash: event.args.txHash};
+  const p = getEventTime(event).then(actionDate => {
+    const res = {eventName: event.event, realHash: event.transactionHash, actionDate, txHash: event.args.txHash};
     if("timestamp" in event.args)   res.timestamp = event.args.timestamp.toNumber();
     return res;
   })

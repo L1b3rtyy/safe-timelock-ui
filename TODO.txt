@@ -1,6 +1,4 @@
-Timelock, (subject, priority, difficulty, effort)
-- Replace To by contact when available                                                  L L M
+(subject, priority, difficulty, effort)
 - Show transactions in process (to be queued / cancelled / executed)                    M M H
 https://docs.safe.global/reference-sdk-starter-kit/safe-client/getpendingtransactions
 - Show who are the signers                                                              M L M
-- Allow installing contract from the UI                                                 M M M

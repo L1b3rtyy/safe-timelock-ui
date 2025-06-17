@@ -2,14 +2,14 @@
 import { ethers } from 'ethers';
 import Safe from '@safe-global/protocol-kit';
 
-export async function createTransaction(safeAddress, to, value, data = "0x") {
-  const {safeSdk, signer} = await getSafeSdk(safeAddress);
+export async function createTransaction(safeAddress, to, value, data = "0x", owners) {
+  const {safeSdk, signer} = await getSafeSdk(safeAddress, owners);
   let safeTx = await safeSdk.createTransaction({ transactions: [{ to, value: ethers.utils.parseEther(value.toString()).toString(), data}] });
   safeTx = await safeSdk.signTransaction(safeTx);
   return {safeTx, signer};
 }
-export async function collectSignature(safeAddress, safeTx, owners) {
-  const {safeSdk, signer} = await getSafeSdk(safeAddress, safeTx, owners);
+export async function collectSignature(safeAddress, owners, safeTx) {
+  const {safeSdk, signer} = await getSafeSdk(safeAddress, owners, safeTx);
   safeTx = await safeSdk.signTransaction(safeTx);
   return {safeTx, signer};
 }
@@ -19,7 +19,7 @@ export async function executeTransaction(safeAddress, safeTx) {
   const execTxResponse = await safeSdk.executeTransaction(safeTx);
   return execTxResponse.transactionResponse?.wait();
 }
-async function getSafeSdk(safeAddress, safeTx, owners) {
+async function getSafeSdk(safeAddress, owners, safeTx) {
   if(!window.ethereum)
     throw new Error("No build-in provider found, please install MetaMask or another wallet provider");
   let accounts = await window.ethereum.request({ method: "eth_requestAccounts" })

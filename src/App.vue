@@ -12,7 +12,7 @@
   const newProvider = ref(null);
   const safeInfo = ref(null);
   const guardInfo = ref({address: null});
-  const guardInfoOld = {};
+  const guardInfoOld = ref({address: null});
   const blockexplorer = ref(null);
   const errorConnecting = ref(null);
   const msgConfig = ref(null);
@@ -21,7 +21,7 @@
   const transactions = ref([]);
   const loadingGuard = ref(false);
   const currentTime = ref(Date.now()/1000);
-  const showmainnet = ref(false);
+  const showMainnet = ref(false);
   const editingConfig = ref(false);
   const addingGuard = ref(false);
   const settingGuard = ref(false);
@@ -29,6 +29,10 @@
   const mewGuardAddress = ref(null);
   const settingProviderCall = ref(false);
   const userMsgDuration = 10000;
+  const lastQueueTime = ref(0);
+  const directExecutionEnabled = computed(() => {
+    return guardInfoOld.value.quorumExecute > safeInfo.value.threshold;
+  })
   const connected = computed(() => {
     return Boolean(safeInfo.value && safeInfo.value.safeAddress && guardInfo.value.address && safeInfo.value.provider)
   })
@@ -71,32 +75,35 @@ M:  for (let i = 0; i < array.length; i++) {
     resetEdit(editingConfig.value);
     msgConfig.value = "";
     if(editingConfig.value) {
-      if(guardInfoOld.limitNoTimelock != guardInfo.value.limitNoTimelock 
-        || guardInfoOld.timelockDuration != guardInfo.value.timelockDuration
-        || guardInfoOld.quorumCancel != guardInfo.value.quorumCancel
-        || guardInfoOld.quorumExecute != guardInfo.value.quorumExecute) {
-        console.log('App.edidConfig - new config');
-        setConfig(guardInfo.value.timelockDuration, guardInfo.value.limitNoTimelock, guardInfo.value.quorumCancel, guardInfo.value.quorumExecute, 
+      if(guardInfoOld.value.throttle != guardInfo.value.throttle 
+        || guardInfoOld.value.limitNoTimelock != guardInfo.value.limitNoTimelock 
+        || guardInfoOld.value.timelockDuration != guardInfo.value.timelockDuration
+        || guardInfoOld.value.quorumCancel != guardInfo.value.quorumCancel
+        || guardInfoOld.value.quorumExecute != guardInfo.value.quorumExecute) {
+        console.log('App.editConfig - new config');
+        setConfig(guardInfo.value.timelockDuration, guardInfo.value.throttle, guardInfo.value.limitNoTimelock, guardInfo.value.quorumCancel, guardInfo.value.quorumExecute, 
           arrayUnique((guardInfo.value.timelockDuration == 0 ? transactions.value : transactions.value.filter(t => t.state == STATES.QUEUED && t.value <= guardInfo.value.limitNoTimelock)).map(t => t.txHash))
         )
-        .then(() => {
-          console.log("App.edidConfig - config set");
-          setAndResetMsgConfig("Transaction sent");
+        .then(safeTxHash => {
+          console.log("App.editConfig - config sent, safeTxHash=" + safeTxHash);
+          setAndResetMsgConfig(safeTxHash ? "Transaction sent" : "Config ready to be queued or executed");
         })
         .catch(error =>  {
-          console.error("App.edidConfig", guardInfo.value.timelockDuration, guardInfo.value.limitNoTimelock, error);
+          console.error("App.editConfig", guardInfo.value.timelockDuration, guardInfo.value.throttle, guardInfo.value.limitNoTimelock, error);
           msgConfig.value = "Error setting config: " + error.message;
         })
-        .finally(() => {
-          guardInfo.value.limitNoTimelock = guardInfoOld.limitNoTimelock;
-          guardInfo.value.timelockDuration = guardInfoOld.timelockDuration;
-          guardInfo.value.quorumCancel = guardInfoOld.quorumCancel;
-          guardInfo.value.quorumExecute = guardInfoOld.quorumExecute;
-        })
+        .finally(() => resetConfig())
       }
       else setAndResetMsgConfig("Same config!");
     }
     editingConfig.value = !(editingConfig.value);
+  }
+  function resetConfig() {
+    guardInfo.value.throttle = guardInfoOld.value.throttle;
+    guardInfo.value.limitNoTimelock = guardInfoOld.value.limitNoTimelock;
+    guardInfo.value.timelockDuration = guardInfoOld.value.timelockDuration;
+    guardInfo.value.quorumCancel = guardInfoOld.value.quorumCancel;
+    guardInfo.value.quorumExecute = guardInfoOld.value.quorumExecute;
   }
   function eventListenerProxy(eventName, ...args) {
     console.log('App.eventListenerProxy - eventName=' + eventName + ', args=', args);
@@ -150,12 +157,17 @@ M:  for (let i = 0; i < array.length; i++) {
     const {p_tx, p_version, p_safe, p_config, p_proxy} = ps;
     errorLoadGuard.value = null;
     loadingGuard.value = true;
-    console.log('App._loadGuardData - processing promisses');
+    console.log('App._loadGuardData - processing promises');
     return Promise.all([
       p_tx.then(txs => {
-        transactions.value = txs;
+        lastQueueTime.value = Math.max(...txs.map(x=>x.queueDate));
+        transactions.value = txs.filter(tx => tx.state == STATES.QUEUED || tx.state == STATES.CANCELED);  
         console.log('App._loadGuardData - define Guard listeners');
-        defineListenersGuard(transactions.value, updateConfig);
+        defineListenersGuard(transactions.value, updateConfig,
+          eventData => {
+            if(eventData.state == STATES.QUEUED)
+              lastQueueTime.value = eventData.queueDate;
+        });
       }),
       p_config.then(timelockConfig => updateConfig(timelockConfig, true)),
       p_safe.then(safeAddress => {
@@ -191,14 +203,15 @@ M:  for (let i = 0; i < array.length; i++) {
   }
   function updateConfig(timelockConfig, loadGuard) {
     console.log('App.updateConfig - loadGuard=' + loadGuard + ', config loaded=', timelockConfig);
-    if(timelockConfig && (timelockConfig.limitNoTimelock != guardInfo.value.limitNoTimelock || timelockConfig.timelockDuration != guardInfo.value.timelockDuration)) {
-      guardInfoOld.limitNoTimelock = guardInfo.value.limitNoTimelock = timelockConfig.limitNoTimelock;
-      guardInfoOld.timelockDuration = guardInfo.value.timelockDuration = timelockConfig.timelockDuration;
-      guardInfoOld.quorumCancel = guardInfo.value.quorumCancel = timelockConfig.quorumCancel;
-      guardInfoOld.quorumExecute = guardInfo.value.quorumExecute = timelockConfig.quorumExecute;
+    if(timelockConfig && (timelockConfig.throttle != guardInfo.value.throttle || timelockConfig.limitNoTimelock != guardInfo.value.limitNoTimelock || timelockConfig.timelockDuration != guardInfo.value.timelockDuration)) {
+      guardInfoOld.value.throttle = guardInfo.value.throttle = timelockConfig.throttle;
+      guardInfoOld.value.limitNoTimelock = guardInfo.value.limitNoTimelock = timelockConfig.limitNoTimelock;
+      guardInfoOld.value.timelockDuration = guardInfo.value.timelockDuration = timelockConfig.timelockDuration;
+      guardInfoOld.value.quorumCancel = guardInfo.value.quorumCancel = timelockConfig.quorumCancel;
+      guardInfoOld.value.quorumExecute = guardInfo.value.quorumExecute = timelockConfig.quorumExecute;
       !loadGuard && setAndResetMsgConfig("Config updated");
     }
-    else guardInfoOld.limitNoTimelock = guardInfo.value.limitNoTimelock = guardInfoOld.timelockDuration = guardInfo.value.timelockDuration = null;
+    else guardInfoOld.value.throttle = guardInfo.value.throttle = guardInfoOld.value.limitNoTimelock = guardInfo.value.limitNoTimelock = guardInfoOld.value.timelockDuration = guardInfo.value.timelockDuration = null;
   }
   function changeGuard(promise) {
     promise.catch(error => {
@@ -262,7 +275,12 @@ M:  for (let i = 0; i < array.length; i++) {
   onMounted(async () => {
     try {
       console.log('App.onMounted - connecting to Safe');
-      const {network, chainId, safeAddress, guardAddress, chainInfoPromise, buildInProvider, version, threshold, owners} = await initSafe();
+      const {network, chainId, safeAddress, guardAddress, chainInfoPromise, buildInProvider, version, threshold, owners} = await initSafe(
+        (to, value, data) => {
+          if(directExecutionEnabled.value)
+            transactionAction.value.setFields(to, value, data);
+          return directExecutionEnabled.value;
+      });
       safeInfo.value = {network, chainId, safeAddress, provider: buildInProvider && "BUILD IN", version, threshold, owners};
       
       console.log('App.onMounted - load Guard data');
@@ -291,7 +309,20 @@ M:  for (let i = 0; i < array.length; i++) {
     </div>
 
     <div v-else-if="safeInfo" class="app-container">
-      Time: {{ formatDate(currentTime) }}
+      <table style="border:none;">
+        <tr>
+          <td style="padding-right: 1rem;">Time:</td>
+          <td style="text-align: left">{{ formatDate(currentTime) }}</td>
+        </tr>
+        <tr v-if="guardInfoOld.throttle && lastQueueTime">
+          <td style="padding-right: 1rem;">Last Queue Time:</td>
+          <td style="text-align: left">
+            {{formatDate(lastQueueTime)}}
+            <myTooltip v-if="currentTime > lastQueueTime + guardInfoOld.throttle" emoji="✅" text="Throttle time passed"/>
+            <myTooltip v-else emoji="⏳" text="Within throttle time"/>
+          </td>
+        </tr>
+      </table>
       <div class="tables-wrapper">
         <table class="status-table">
           <tr>
@@ -399,6 +430,10 @@ M:  for (let i = 0; i < array.length; i++) {
               <td><input :disabled="!editingConfig" v-model.number="guardInfo.timelockDuration" type="number" min="1" max="1209600" class="narrow"/></td>
             </tr>
             <tr>
+              <td colspan="2" style="text-align: left;">Throttle</td>
+              <td><input :disabled="!editingConfig" v-model.number="guardInfo.throttle" min="0" max="3600" type="number" class="narrow"/></td>
+            </tr>
+            <tr>
               <td colspan="2" style="text-align: left;">Timelock limit value</td>
               <td ><input :disabled="!editingConfig" v-model.number="guardInfo.limitNoTimelock" type="number" min="0" step="any" class="narrow"/></td>
             </tr>
@@ -414,7 +449,7 @@ M:  for (let i = 0; i < array.length; i++) {
               <td style="text-align: left;">Execute</td>
               <td>
                 <input :disabled="!editingConfig" v-model.number="guardInfo.quorumExecute" type="number" min="0" step="any" class="narrow"/>
-                <myTooltip v-if="guardInfoOld.quorumExecute > safeInfo.threshold" emoji="✅" text="Direct execution enabled" />
+                <myTooltip v-if="directExecutionEnabled" emoji="✅" text="Direct execution enabled" />
                 <myTooltip v-else emoji="⏸️" text="Direct execution disabled" />
               </td>
             </tr>
@@ -424,7 +459,7 @@ M:  for (let i = 0; i < array.length; i++) {
                 <span v-else-if="errorLoadGuard">Issue loading config - check Guard address</span>
                 <span v-else>
                   <button :disabled="!connected" type="submit">{{editingConfig ? "Save Config" : "Edit Config"}}</button>
-                  <button v-if="editingConfig" @click="editingConfig=false">Cancel</button>
+                  <button v-if="editingConfig" @click="editingConfig=false; resetConfig()">Cancel</button>
                   <div v-if="msgConfig">{{ msgConfig }}</div>
                 </span>
               </td>
@@ -437,11 +472,11 @@ M:  for (let i = 0; i < array.length; i++) {
       </div>
       <div v-if="msgGuard">{{ msgGuard }}</div>
       <div v-if="connected">
-        <div v-if="safeInfo.chainId==1 && !showmainnet">
+        <div v-if="safeInfo.chainId==1 && !showMainnet">
           <br>
           YOU ARE ON MAINNET, MAKE SURE YOU KNOW WHAT YOU ARE DOING.<br>
           THIS CODE HAS NOT BEEN AUDITED AND IS STILL IN DEV, YOU PROCEED AT YOUR OWN RISKS<br>
-          <button @click="showmainnet=true">SHOW APP ANYWAY</button>
+          <button @click="showMainnet=true">SHOW APP ANYWAY</button>
         </div>
         <div v-else>
           <div v-if="loadingGuard">
@@ -452,11 +487,11 @@ M:  for (let i = 0; i < array.length; i++) {
           </div>
           <div v-else class="app-container">
             <TransactionAction :threshold="safeInfo.threshold" :quorumExecute="guardInfoOld.quorumExecute" :quorumCancel="guardInfoOld.quorumCancel" :safeAddress="safeInfo.safeAddress" :owners="safeInfo.owners" ref="transactionAction"/>
-            <Transactions :transactions="transactions.filter(t=>t.state==STATES.QUEUED)" :canCancel="guardInfoOld.quorumCancel <= safeInfo.threshold" :showAction="true" :disabled="tx => currentTime < (tx.actiondate + guardInfo.timelockDuration)"
-              :blockexplorer="blockexplorer" :dateFormater="tx => formatDate(tx.actiondate + guardInfo.timelockDuration)" dateTitle="Execute after" title="Queued Transactions"
+            <Transactions :transactions="transactions.filter(t=>t.state==STATES.QUEUED)" :canCancel="guardInfoOld.quorumCancel <= safeInfo.threshold" :showAction="true" :disabled="tx => currentTime < (tx.actionDate + guardInfo.timelockDuration)"
+              :blockexplorer="blockexplorer" :dateFormatter="tx => formatDate(tx.actionDate + guardInfo.timelockDuration)" dateTitle="Execute after" title="Queued Transactions"
               @cancel="(txHash, timestampPos, timestamp) => transactionAction.cancelTransaction(guardInfo.address, txHash, timestampPos, timestamp)"/>
             <Transactions :transactions="transactions.filter(t=>t.state==STATES.CANCELED)"
-              :blockexplorer="blockexplorer" :dateFormater="tx => formatDate(tx.actiondate)" dateTitle="Cancelation date" title="Canceled Transactions" />
+              :blockexplorer="blockexplorer" :dateFormatter="tx => formatDate(tx.actionDate)" dateTitle="Cancellation date" title="Canceled Transactions" />
           </div>
         </div>
       </div>

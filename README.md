@@ -19,24 +19,28 @@ Note: usage of ```quorumCancel``` and ```quorumExecute``` is limited to gatherin
 
 ## Architecture
 
-JS framework: Vue
+JS tooling
+- JS framework: [Vue](https://vuejs.org/)
+- JS Bundler: [Vite](https://vite.dev/)
+- Hosting: [Vercel](https://vercel.com/)
 
-JS Bundler: Vite
-
-Hosting: Vercel
+Ethereum client tooling:
+- [Ethers](https://docs.ethers.org/v5/)
+- [safe-apps-sdk](https://github.com/safe-global/safe-apps-sdk)
+- [safe-protocol-kit](https://github.com/safe-global/safe-core-sdk/tree/main/packages/protocol-kit)
 
 ## Build and Deploy
 
-0. First time only: create a vercel account at https://vercel.com/ and then initialize vercel locally
+0. Local deployment
+```
+npm run dev
+```
+1. First time only: create a vercel account at https://vercel.com/ and then initialize vercel locally
 ```
 vercel login
 vercel
 ```
-1. Build
-```
-npm run build
-```
-2. Deploy to vercel
+2. Build and deploy
 ```
 vercel --prod
 ```

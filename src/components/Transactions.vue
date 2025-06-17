@@ -21,7 +21,7 @@
       type: String,
       required: true
     },
-    dateFormater: {
+    dateFormatter: {
       type: Function,
       required: true
     },
@@ -42,7 +42,7 @@
   const emit = defineEmits(['cancel'])
 
   function cancel(txHash, timestamp) {
-    const timestampPos = props.transactions.filter(tx => tx.txHash == txHash).findIndex(tx => tx.actiondate == timestamp)
+    const timestampPos = props.transactions.filter(tx => tx.txHash == txHash).findIndex(tx => tx.actionDate == timestamp)
     if(props.canCancel)
       return cancelTransaction(txHash, timestampPos, timestamp);
     else
@@ -83,7 +83,7 @@
           <td>{{ truncate(tx.data, 20) }}
             <Copy :text="tx.data" />
           </td>
-          <td>{{ dateFormater(tx) }}
+          <td>{{ dateFormatter(tx) }}
             <span v-if="showAction">
               <myTooltip v-if="disabled(tx)" emoji="❌" text="Timelock still active" />
               <myTooltip v-else emoji="✅" text="Timelock completed" />
@@ -91,7 +91,7 @@
           </td> 
           <td v-if="showAction">
             <button style="padding: .2em" :disabled="disabled(tx)" @click="execute(tx)">Execute</button>
-            <button style="padding: .2em" @click="cancel(tx.txHash, tx.actiondate)">Cancel</button>
+            <button style="padding: .2em" @click="cancel(tx.txHash, tx.actionDate)">Cancel</button>
           </td>
         </tr>
       </tbody>

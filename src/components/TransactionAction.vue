@@ -3,19 +3,20 @@
     <h2>{{ title }}</h2>
 
     <form class="queue-form" @submit.prevent="false">
+      <myTooltip v-if="!collectingSignaturesExecute && !collectingSignaturesCancel && (to!='' || value!=0 || data!='0x')" class="reset-button" @click="to='';value=0;data='0x'" icon="fa-solid fa-cancel" text="Reset"/>
       <div class="form-row">
         <label>To:</label>
-        <input :disabled="collectingSignatures" v-model="to" type="text" required class="wide" pattern="^0x[a-fA-F0-9]{40}$" />
+        <input :disabled="collectingSignatures" v-model="to" type="text" required class="wide" :class="{ blinking: isBlinking }" pattern="^0x[a-fA-F0-9]{40}$" />
       </div>
 
       <div class="form-row">
         <label>Value (ETH):</label>
-        <input :disabled="collectingSignatures" v-model.number="value" type="number" step="any" class="narrow" />
+        <input :disabled="collectingSignatures" v-model.number="value" type="number" step="any" class="narrow" :class="{ blinking: isBlinking }" />
       </div>
 
       <div class="form-row">
         <label>Data (hex):</label>
-        <input :disabled="collectingSignatures" v-model="data" type="text" required class="wide" pattern="^0x(?:[a-fA-F0-9]{2})*$" />
+        <input :disabled="collectingSignatures" v-model="data" type="text" required class="wide" :class="{ blinking: isBlinking }" pattern="^0x(?:[a-fA-F0-9]{2})*$" />
       </div>
 
       <div class="form-actions">
@@ -32,7 +33,7 @@
         </div>
         <div v-if="quorumCancel > threshold">
           Cancel<br>
-          <button :disabled="collectingSignaturesExecute || !collectingSignaturesCancel" @click="nbSignatures >= quorumCancel ? callExecuteTransaction() : addSignaturehelper()">{{cancelBtnTxt}}</button>
+          <button :disabled="collectingSignaturesExecute || !collectingSignaturesCancel" @click="nbSignatures >= quorumCancel ? callExecuteTransaction() : addSignatureHelper()">{{cancelBtnTxt}}</button>
           <myTooltip v-if="collectingSignaturesCancel" @click="status='';cancelCollectingSignatures(true)" icon="fa-solid fa-cancel" text="Cancel signature collection"/>
           <br>
           Signatures:
@@ -49,7 +50,7 @@
 import myTooltip from './myTooltip.vue';
 import { queueTransaction, buildTxData } from "../composables/useSafe.js"
 import { collectSignature, createTransaction, executeTransaction } from "../composables/runTransaction.js"
-import { ref, computed, defineExpose } from 'vue'
+import { ref, computed } from 'vue'
 import { addressDisplay, truncate } from "./utils.js";
 
 const props = defineProps({
@@ -74,8 +75,9 @@ const props = defineProps({
     required: true
   }
 })
+const isBlinking = ref(false);
 
-defineExpose( {cancelTransaction} );
+defineExpose( {cancelTransaction, setFields} );
 
 const title = computed(() => {
   if(props.quorumExecute > props.threshold && props.quorumCancel > props.threshold)
@@ -146,16 +148,16 @@ function isFormValid() {
   }
 }
 async function addSignatureExecute() {
-  await addSignaturehelper();
+  await addSignatureHelper();
   collectingSignaturesExecute.value = true;
 }
-async function addSignaturehelper() {
+async function addSignatureHelper() {
   isFormValid();
   status.value = 'Adding signature...'
   try {
     const {safeTx, signer} = tx.value==null ?
-      await createTransaction(props.safeAddress, to.value, value.value, data.value) :
-      await collectSignature(props.safeAddress, tx.value, props.owners);
+      await createTransaction(props.safeAddress, to.value, value.value, data.value, props.owners) :
+      await collectSignature(props.safeAddress, props.owners, tx.value);
     tx.value = safeTx;
     ownersSigned.value.push(signer);
     status.value = 'Signature added';
@@ -181,10 +183,16 @@ function clearFields() {
   value.value = 0;
   data.value = '0x';
 }
+function setFields(_to, _value, _data) {
+  console.log("setFields");
+  to.value = _to;
+  value.value = _value;
+  data.value = _data;
+  isBlinking.value = true;
+  setTimeout(() => isBlinking.value = false, 1500);
+}
 async function cancelTransaction(guardAddress, txHash, timestampPos, timestamp) {
-  to.value = guardAddress;
-  value.value = 0;
-  data.value = buildTxData('function cancelTransaction(bytes32 txHash, uint256 timestampPos, uint256 timestamp)', "cancelTransaction", [txHash, timestampPos, timestamp])
+  setFields(guardAddress, 0, buildTxData('function cancelTransaction(bytes32 txHash, uint256 timestampPos, uint256 timestamp)', "cancelTransaction", [txHash, timestampPos, timestamp]));
   await addSignaturehelper();
   collectingSignaturesCancel.value = true;
 }
@@ -228,6 +236,7 @@ function sendTransaction(preStatus, postStatus, errorStatus, func) {
 
 <style scoped>
 .queue-form {
+  position: relative; /* makes this the reference for absolutely positioned children */
   max-width: 520px;
   padding: 1rem;
   border: 1px solid #ccc;
@@ -287,5 +296,20 @@ button[disabled] {        /* covers v-bind:disabled in Vue */
 .status {
   font-size: 0.85rem;
   color: #333;
+}
+@keyframes blinkText {
+  0%, 100% { color: white; }
+  50% { color: transparent; } /* hides only the text */
+}
+
+.blinking {
+  animation: blinkText 0.3s step-start infinite;
+}
+.reset-button {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1; /* ensures it's above other content if needed */
+  padding: 3px 3px;
 }
 </style>
