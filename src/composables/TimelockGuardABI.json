@@ -1,24 +1,33 @@
 [
     {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "txHash",
-          "type": "bytes32"
-        }
-      ],
+      "inputs": [],
       "name": "CancelMisMatch",
       "type": "error"
     },
     {
       "inputs": [
         {
-          "internalType": "uint64",
-          "name": "timelockDuration",
-          "type": "uint64"
+          "internalType": "uint256",
+          "name": "i",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "j",
+          "type": "uint256"
         }
       ],
+      "name": "DuplicateSignature",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "InvalidConfig",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "MaxQueue",
       "type": "error"
     },
     {
@@ -43,14 +52,30 @@
           "internalType": "uint128",
           "name": "limitNoTimelock",
           "type": "uint128"
-        },
-        {
-          "internalType": "uint256",
-          "name": "value",
-          "type": "uint256"
         }
       ],
       "name": "QueuingNotNeeded",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "lastQueueTime",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint64",
+          "name": "throttle",
+          "type": "uint64"
+        }
+      ],
+      "name": "Throttled",
       "type": "error"
     },
     {
@@ -72,9 +97,9 @@
           "type": "address"
         },
         {
-          "internalType": "bool",
+          "internalType": "enum BaseTimelockGuard.UNAUTHORIZED_REASONS",
           "name": "reason",
-          "type": "bool"
+          "type": "uint8"
         }
       ],
       "name": "UnAuthorized",
@@ -82,7 +107,7 @@
     },
     {
       "inputs": [],
-      "name": "ZerodAddess",
+      "name": "ZeroAddress",
       "type": "error"
     },
     {
@@ -147,6 +172,19 @@
       "inputs": [],
       "name": "TransactionsCleared",
       "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "MAX_QUEUE",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     },
     {
       "inputs": [],
@@ -281,6 +319,25 @@
     {
       "inputs": [
         {
+          "internalType": "bytes32",
+          "name": "txHash",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getTransactions",
+      "outputs": [
+        {
+          "internalType": "uint256[]",
+          "name": "",
+          "type": "uint256[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
           "internalType": "address",
           "name": "to",
           "type": "address"
@@ -350,6 +407,11 @@
         {
           "internalType": "uint64",
           "name": "timelockDuration",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "throttle",
           "type": "uint64"
         },
         {
