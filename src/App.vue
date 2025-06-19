@@ -313,6 +313,7 @@ M:  for (let i = 0; i < array.length; i++) {
 <template>
   <div>
     <h1>Safe Timelock</h1>
+    <a href="https://github.com/L1b3rtyy/safe-timelock-ui"><font-awesome-icon icon="fa-brands fa-github" style="color: white"/></a>
     <div v-if="errorConnecting">
       {{ errorConnecting }}
     </div>
