@@ -7,6 +7,7 @@
   import { ref, onMounted, computed, useTemplateRef  } from 'vue';
   import { version } from "../package.json";
   import versions from "./composables/versions.json";
+  import { getSignersFromSafeTx } from "./composables/getOwners.js";
   
   const transactionAction = useTemplateRef(null);
   const newProvider = ref(null);
@@ -160,13 +161,21 @@ M:  for (let i = 0; i < array.length; i++) {
     console.log('App._loadGuardData - processing promises');
     return Promise.all([
       p_tx.then(txs => {
+        console.log('App._loadGuardData - received transactions');
         lastQueueTime.value = Math.max(...txs.map(x=>x.queueDate));
-        transactions.value = txs.filter(tx => tx.state == STATES.QUEUED || tx.state == STATES.CANCELED);  
+        transactions.value = txs.filter(tx => tx.state == STATES.QUEUED || tx.state == STATES.CANCELED);
+        for(const tx of transactions.value)
+          getSignersFromSafeTx(tx.realHash).then(signers => tx.signers = signers);
         console.log('App._loadGuardData - define Guard listeners');
         defineListenersGuard(transactions.value, updateConfig,
           eventData => {
-            if(eventData.state == STATES.QUEUED)
-              lastQueueTime.value = eventData.queueDate;
+            if(eventData.state == STATES.QUEUED || eventData == STATES.CANCELED) {
+              if(eventData.state == STATES.QUEUED)
+                lastQueueTime.value = eventData.queueDate;
+              const tx = transactions.value.find(t => t.realHash == eventData.realHash);
+              if(tx)
+                getSignersFromSafeTx(tx.realHash).then(signers => tx.signers = signers);
+            }
         });
       }),
       p_config.then(timelockConfig => updateConfig(timelockConfig, true)),

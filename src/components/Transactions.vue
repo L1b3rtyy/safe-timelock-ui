@@ -1,6 +1,7 @@
 <script setup>
   import myTooltip from './myTooltip.vue';
   import Copy from './Copy.vue';
+  import { ref } from 'vue';
   import { executeTransaction, cancelTransaction } from '../composables/useSafe';
   import { addressDisplay, truncate } from "./utils.js";
 
@@ -40,6 +41,7 @@
   })
   
   const emit = defineEmits(['cancel'])
+  const showSigners = ref(-1);
 
   function cancel(txHash, timestamp) {
     const timestampPos = props.transactions.filter(tx => tx.txHash == txHash).findIndex(tx => tx.actionDate == timestamp)
@@ -61,38 +63,50 @@
     <table v-else class="transaction-table">
       <thead>
         <tr>
-          <th>Transaction hash</th>
+          <th style="white-space: nowrap;">Transaction hash</th>
           <th>To</th>
-          <th>Value (ETH)</th>
+          <th style="white-space: nowrap;">Value (ETH)</th>
           <th>Data</th>
           <th>{{dateTitle}}</th>
           <th v-if="showAction">Action</th>
+          <th style="width: 1%;">Signers</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="tx in transactions" :key="tx.txHash">
-          <td>
+        <tr v-for="(tx, txIndex) in transactions" :key="tx.txHash">
+          <td style="white-space: nowrap;">
             <a :href="blockexplorer && blockexplorer.txHash.replace('\{\{txHash\}\}', tx.realHash)">{{ addressDisplay(tx.realHash) }}</a>
             <Copy :text="tx.realHash" />
           </td>
-          <td>
+          <td style="white-space: nowrap;">
             <a :href="blockexplorer && blockexplorer.address.replace('\{\{address\}\}', tx.to)">{{ addressDisplay(tx.to) }}</a>
             <Copy :text="tx.to" />
           </td>
           <td>{{ tx.value }}</td>
-          <td>{{ truncate(tx.data, 20) }}
+          <td style="white-space: nowrap;">{{ truncate(tx.data, 20) }}
             <Copy :text="tx.data" />
           </td>
-          <td>{{ dateFormatter(tx) }}
+          <td style="white-space: nowrap;">{{ dateFormatter(tx) }}
             <span v-if="showAction">
               <myTooltip v-if="disabled(tx)" emoji="❌" text="Timelock still active" />
               <myTooltip v-else emoji="✅" text="Timelock completed" />
             </span>
           </td> 
-          <td v-if="showAction">
+          <td v-if="showAction" style="white-space: nowrap;">
             <button style="padding: .2em" :disabled="disabled(tx)" @click="execute(tx)">Execute</button>
             <button style="padding: .2em" @click="cancel(tx.txHash, tx.actionDate)">Cancel</button>
           </td>
+          <td v-if="tx.signers" style="white-space: nowrap;">
+            <myTooltip v-if="showSigners!=txIndex" @click="showSigners=txIndex" :emoji="tx.signers.length + (tx.signers.length>1 ? ' signers': ' signer')" text="Click to see signers" />
+            <span v-else>
+              <myTooltip @click="showSigners=-1" icon="fa-solid fa-angle-up" text="Hide the signers" />
+              <span v-for="{ signer } in tx.signers" :key="signer"><br>
+                <a :href="blockexplorer && blockexplorer.address.replace('\{\{address\}\}', signer)">{{ addressDisplay(signer) }}</a>
+                <Copy :text="signer" />
+              </span>
+            </span> 
+          </td>
+          <td v-else>...</td>
         </tr>
       </tbody>
     </table>

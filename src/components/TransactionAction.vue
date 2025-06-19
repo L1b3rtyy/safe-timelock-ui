@@ -163,7 +163,7 @@ async function addSignatureHelper() {
     status.value = 'Signature added';
   }
   catch(e) {
-    console.error("addSignaturehelper", e);
+    console.error("addSignatureHelper", e);
     status.value = 'Failed to add signature: ' + truncate(e.message, 200);
   }
   finally {
@@ -193,7 +193,7 @@ function setFields(_to, _value, _data) {
 }
 async function cancelTransaction(guardAddress, txHash, timestampPos, timestamp) {
   setFields(guardAddress, 0, buildTxData('function cancelTransaction(bytes32 txHash, uint256 timestampPos, uint256 timestamp)', "cancelTransaction", [txHash, timestampPos, timestamp]));
-  await addSignaturehelper();
+  await addSignatureHelper();
   collectingSignaturesCancel.value = true;
 }
 function callExecuteTransaction() {

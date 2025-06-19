@@ -10,9 +10,9 @@ import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
 /* import specific icons */
 // https://fontawesome.com/search
-import { faTrashCan, faEdit, faSave, faCopy, faArrowUpFromBracket, faCancel } from '@fortawesome/free-solid-svg-icons';
+import { faTrashCan, faEdit, faSave, faCopy, faArrowUpFromBracket, faCancel, faAngleUp } from '@fortawesome/free-solid-svg-icons';
 
-library.add([faTrashCan, faEdit, faSave, faCopy, faArrowUpFromBracket, faCancel]);
+library.add([faTrashCan, faEdit, faSave, faCopy, faArrowUpFromBracket, faCancel, faAngleUp]);
 
 createApp(App)
 .component('font-awesome-icon', FontAwesomeIcon)

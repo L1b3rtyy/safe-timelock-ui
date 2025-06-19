@@ -5,6 +5,7 @@ import safeABI from './SafeABI.json';
 import ProxyAdminABI from './ProxyAdminABI.json';
 import ProxyABI from './ProxyABI.json';
 import SafeAppsSDK from '@safe-global/safe-apps-sdk';
+import { initOwnerRetriever } from "./getOwners.js";
 
 let guardAddress;
 let safeAddress;
@@ -57,8 +58,10 @@ export async function initSafe(_queueCallback) {
   const safeInfo = await Promise.race([sdk.safe.getInfo(), timeout]);
   console.log("initSafe - safeInfo=", safeInfo);
   safeAddress = safeInfo.safeAddress;
-  if(window.ethereum)
+  if(window.ethereum) {
     provider = new ethers.providers.Web3Provider(window.ethereum);
+    initOwnerRetriever(safeAddress, provider);
+  }
   return {threshold: safeInfo.threshold, owners: safeInfo.owners, network: safeInfo.network, chainId: safeInfo.chainId, chainInfoPromise, version: safeInfo.version, guardAddress: safeInfo.guard, safeAddress, buildInProvider: Boolean(window.ethereum)};
 }
 function getEventTime(event) {
@@ -140,6 +143,7 @@ export async function upgradeGuard(guardProxyAdmin, guardProxy, newGuardImp) {
 export async function setProvider(providerURL) {
   console.log("setProvider - providerURL=" + providerURL);
   provider =  new ethers.providers.JsonRpcProvider(providerURL);
+  initOwnerRetriever(safeAddress, provider);
   return provider.getNetwork();
 }
 export function loadGuardData(_guardAddress, eventListenerProxy) {
@@ -202,7 +206,6 @@ async function loadTransactions() {
   if(!contract)
     return [];
   const eventsDataByName = await Promise.all(Object.values(EVENT_NAMES).map(eventName => contract.queryFilter(contract.filters[eventName]()).then(events => Promise.all(events.map(e => e && e.args && transactionBuilder(e))))));
-  console.log("eventsDataByName=", eventsDataByName);
   const eventsData = eventsDataByName.flat().sort((a,b) => a.actionDate-b.actionDate);
   console.log("loadTransactions - #eventsData=" + eventsData.length);
 
@@ -256,30 +259,32 @@ function processEvent(transactions, eventData) {
     case EVENT_NAMES.QUEUED:
       eventData.state = STATES.QUEUED;
       eventData.queueDate = eventData.actionDate; 
+      eventData.queueHash = eventData.transactionHash; 
       transactions.push(eventData);
       break;
     case EVENT_NAMES.CANCELED:
     case EVENT_NAMES.EXECUTED:
       const transaction = transactions.find(e => e.state == STATES.QUEUED && e.txHash == eventData.txHash && e.actionDate == eventData.timestamp);
       if(!transaction)
-        console.error("loadTransactions - inconsistent transaction, [txHash, timestamp]=" + [eventData.txHash, eventData.timestamp])
+        console.error("processEvent - inconsistent transaction, [txHash, timestamp]=" + [eventData.txHash, eventData.timestamp])
       else
-        updateTransaction(transaction, eventData.actionDate, (eventData.eventName == EVENT_NAMES.CANCELED ? STATES.CANCELED : STATES.EXECUTED));
+        updateTransaction(transaction, eventData, (eventData.eventName == EVENT_NAMES.CANCELED ? STATES.CANCELED : STATES.EXECUTED));
       break;
     case EVENT_NAMES.CLEARED:
       for(const transaction of transactions)
         if(transaction.state == STATES.QUEUED && transaction.txHash == eventData.txHash)
-            updateTransaction(transaction, eventData.actionDate, STATES.CLEARED);
+            updateTransaction(transaction, eventData, STATES.CLEARED);
       break;
     case EVENT_NAMES.CLEARED_HASHES:
       for(const transaction of transactions)
         if(transaction.state == STATES.QUEUED && eventData.clearHashes.indexOf(transaction.txHash)!=-1)
-            updateTransaction(transaction, eventData.actionDate, STATES.CLEARED);
+            updateTransaction(transaction, eventData, STATES.CLEARED);
       break;
   }
 }
-function updateTransaction(transaction, actionDate, state) {
-  transaction.actionDate = actionDate;
+function updateTransaction(transaction, eventData, state) {
+  transaction.actionDate = eventData.actionDate;
+  transaction.realHash = eventData.realHash;
   transaction.state = state;
 }
 function eventListener(transactions, ...args) {
