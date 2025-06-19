@@ -35,7 +35,7 @@ Ethereum client tooling:
 ```
 npm run dev
 ```
-1. First time only: create a vercel account at https://vercel.com/ and then initialize vercel locally
+1. First time only: create a [vercel](https://vercel.com/) account and then initialize vercel locally
 ```
 vercel login
 vercel
@@ -44,4 +44,4 @@ vercel
 ```
 vercel --prod
 ```
-3. First time only: import into your Safe as a Safe App: https://help.safe.global/en/articles/40859-add-a-custom-safe-app
+3. First time only: [Add a custom Safe App](https://help.safe.global/en/articles/40859-add-a-custom-safe-app)

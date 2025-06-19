@@ -1,6 +1,7 @@
 //@ts-check
 import { ethers } from 'ethers';
 import safeABI from './SafeABI.json';
+import {contract as guard} from "./useSafe.js";
 
 let provider = null;
 let safe = null;
@@ -9,19 +10,21 @@ let safe = null;
 export async function getSignersFromSafeTx(txHash) {
   console.log("getSignersFromSafeTx - txHash=" + txHash);
   const tx = await provider.getTransaction(txHash);
-  const receipt = await provider.getTransactionReceipt(txHash);
-  const block = await provider.getBlock(receipt.blockNumber);
-  const nonce = await safe.nonce({ blockTag: block.number - 1 });
+  return Promise.all([getSignersFromSafeTx_Helper(tx), getQuorumsFromSafeTx(tx.blockNumber)])
+  .then(([signersInfo, quorums])=>({signersInfo, quorums}));
+}
+async function getQuorumsFromSafeTx(blockNumber) {
+  return Promise.all([safe.getThreshold({ blockTag: blockNumber - 1 }),
+    guard.quorumCancel({ blockTag: blockNumber - 1 }).catch(() => "?"),
+    guard.quorumExecute({ blockTag: blockNumber - 1 }).catch(() => "?")])
+  .then(([threshold, quorumCancel, quorumExecute])=>({threshold, quorumCancel, quorumExecute}));
+}
+async function getSignersFromSafeTx_Helper(tx) {
+  const nonce = await safe.nonce({ blockTag: tx.blockNumber - 1 });
   const iface = new ethers.utils.Interface(safeABI);
   const parsedTx = iface.parseTransaction({ data: tx.data, value: tx.value });
 
-  const {
-    to, value, data, operation,
-    safeTxGas, baseGas, gasPrice,
-    gasToken, refundReceiver,
-    signatures
-  } = parsedTx.args;
-  console.log("getSignersFromSafeTx - [to, value, data, operation, safeTxGas, baseGas, gasPrice, gasToken, refundReceiver, nonce, signatures]=" + [to, value, data, operation, safeTxGas, baseGas, gasPrice, gasToken, refundReceiver, nonce, signatures]);
+  const { to, value, data, operation, safeTxGas, baseGas, gasPrice, gasToken, refundReceiver, signatures } = parsedTx.args;
 
   const txHashToSign = await safe.getTransactionHash(
     to, value.toNumber(), data, operation,
@@ -92,6 +95,5 @@ function parseSafeSignatures(signatures, txHashToSign) {
     // Unknown or unsupported type
     signers.push({ signer: null, type: 'unknown', rawV: v });
   }
-
   return signers;
 }

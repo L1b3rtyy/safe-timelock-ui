@@ -96,15 +96,17 @@
             <button style="padding: .2em" :disabled="disabled(tx)" @click="execute(tx)">Execute</button>
             <button style="padding: .2em" @click="cancel(tx.txHash, tx.actionDate)">Cancel</button>
           </td>
-          <td v-if="tx.signers" style="white-space: nowrap;">
-            <myTooltip v-if="showSigners!=txIndex" @click="showSigners=txIndex" :emoji="tx.signers.length + (tx.signers.length>1 ? ' signers': ' signer')" text="Click to see signers" />
-            <span v-else>
-              <myTooltip @click="showSigners=-1" icon="fa-solid fa-angle-up" text="Hide the signers" />
-              <span v-for="{ signer } in tx.signers" :key="signer"><br>
+          <td v-if="tx.signers && tx.signers.signersInfo" style="white-space: nowrap;">
+            {{ tx.signers.signersInfo.length + (tx.signers.signersInfo.length>1 ? ' signers': ' signer')}}
+            <myTooltip :emoji="'(' + tx.signers.quorums.threshold + '|' + tx.signers.quorums.quorumCancel + '|' + tx.signers.quorums.quorumExecute + ')'" text="(threshold|quorumCancel|quorumExecute)" />
+            <myTooltip v-if="showSigners != txIndex" @click="showSigners=txIndex" icon="fa-solid fa-angle-down" text="Show the signers" />
+            <myTooltip v-else @click="showSigners=-1" icon="fa-solid fa-angle-up" text="Hide the signers" />
+            <span v-if="showSigners == txIndex" >
+              <span v-for="{ signer } in tx.signers.signersInfo" :key="signer"><br>
                 <a :href="blockexplorer && blockexplorer.address.replace('\{\{address\}\}', signer)">{{ addressDisplay(signer) }}</a>
                 <Copy :text="signer" />
               </span>
-            </span> 
+            </span>
           </td>
           <td v-else>...</td>
         </tr>

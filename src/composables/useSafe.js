@@ -10,7 +10,7 @@ import { initOwnerRetriever } from "./getOwners.js";
 let guardAddress;
 let safeAddress;
 let provider;
-let contract;
+export let contract;
 let queueCallback;
 export const zeroAddress = '0x0000000000000000000000000000000000000000';
 
