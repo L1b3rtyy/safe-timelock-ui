@@ -2,7 +2,7 @@
   import myTooltip from './myTooltip.vue';
   import Copy from './Copy.vue';
   import { ref } from 'vue';
-  import { executeTransaction, cancelTransaction } from '../composables/useSafe';
+  import { executeTransaction, cancelTransaction, removeOwner } from '../composables/useSafe';
   import { addressDisplay, truncate } from "./utils.js";
 
   const props = defineProps({
@@ -37,6 +37,14 @@
     canCancel: {
       type: Boolean,
       default: false
+    },
+    owners: {
+      type: Array,
+      required: true
+    },
+    threshold: {
+      type: Number,
+      required: true
     }
   })
   
@@ -49,9 +57,14 @@
       return cancelTransaction(txHash, timestampPos, timestamp);
     else
       emit('cancel', txHash, timestampPos, timestamp) 
-    }
+  }
   function execute(tx) {
     return executeTransaction(tx.to, tx.value, tx.data);
+  }
+  function removeOwnerHelper(owner) {
+    console.log("removeOwnerHelper - owner=" + owner);
+    const i = props.owners.indexOf(owner);
+    return removeOwner(i == 0 ? null : props.owners[i-1], owner, props.threshold);
   }
 </script>
 
@@ -102,9 +115,12 @@
             <myTooltip v-if="showSigners != txIndex" @click="showSigners=txIndex" icon="fa-solid fa-angle-down" text="Show the signers" />
             <myTooltip v-else @click="showSigners=-1" icon="fa-solid fa-angle-up" text="Hide the signers" />
             <span v-if="showSigners == txIndex" >
-              <span v-for="{ signer } in tx.signers.signersInfo" :key="signer"><br>
+              <span v-for="{ signer } in tx.signers.signersInfo" :key="signer" :style="!owners.includes(signer) && 'background-color: #474747;' "><br>
                 <a :href="blockexplorer && blockexplorer.address.replace('\{\{address\}\}', signer)">{{ addressDisplay(signer) }}</a>
                 <Copy :text="signer" />
+                <myTooltip v-if="owners.includes(signer) && threshold!=owners.length" @click="removeOwnerHelper(signer)" icon="fa-solid fa-trash-can" text="Remove signer with same threshold" />
+                <myTooltip v-else-if="owners.includes(signer) && threshold==owners.length" emoji="!" text="Cant remove owner without decreasing threshold - needs manual check" />
+                <myTooltip v-else emoji="?" text="Not an owner anymore" />
               </span>
             </span>
           </td>

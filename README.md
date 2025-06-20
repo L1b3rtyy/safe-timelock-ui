@@ -12,6 +12,7 @@ Allows:
 - Gathering signatures on top of the Safe's threshold to handle the cases where
   * Additional signatures are needed to cancel a transaction (```quorumCancel > threshold```)
   * Direct transaction execution is enabled (```quorumExecute > threshold```) 
+- Removing owners of suspicious transactions
 
 More info on how to create a Safe App: [How to create a Safe App with Safe Apps SDK and list it](https://help.safe.global/en/articles/145503-how-to-create-a-safe-app-with-safe-apps-sdk-and-list-it)
 

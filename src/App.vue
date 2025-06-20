@@ -3,11 +3,10 @@
   import myTooltip from './components/myTooltip.vue';
   import TransactionAction from './components/TransactionAction.vue';
   import Transactions from './components/Transactions.vue';
-  import { zeroAddress, getProxyDetails, loadGuardData, getGuardVersion, defineListenersGuard, SAFE_EVENT_NAMES, STATES, EVENT_NAMES_PROXY, initSafe, setConfig, setGuard, defineListenersSafe, upgradeGuard, setProvider } from './composables/useSafe.js';
+  import { getSignersFromSafeTx, zeroAddress, getProxyDetails, loadGuardData, getGuardVersion, defineListenersGuard, SAFE_EVENT_NAMES, STATES, EVENT_NAMES_PROXY, initSafe, setConfig, setGuard, defineListenersSafe, upgradeGuard, setProvider } from './composables/useSafe.js';
   import { ref, onMounted, computed, useTemplateRef  } from 'vue';
   import { version } from "../package.json";
   import versions from "./composables/versions.json";
-  import { getSignersFromSafeTx } from "./composables/getOwners.js";
   
   const transactionAction = useTemplateRef(null);
   const newProvider = ref(null);
@@ -498,9 +497,9 @@ M:  for (let i = 0; i < array.length; i++) {
           <div v-else class="app-container">
             <TransactionAction :threshold="safeInfo.threshold" :quorumExecute="guardInfoOld.quorumExecute" :quorumCancel="guardInfoOld.quorumCancel" :safeAddress="safeInfo.safeAddress" :owners="safeInfo.owners" ref="transactionAction"/>
             <Transactions :transactions="transactions.filter(t=>t.state==STATES.QUEUED)" :canCancel="guardInfoOld.quorumCancel <= safeInfo.threshold" :showAction="true" :disabled="tx => currentTime < (tx.actionDate + guardInfo.timelockDuration)"
-              :blockexplorer="blockexplorer" :dateFormatter="tx => formatDate(tx.actionDate + guardInfo.timelockDuration)" dateTitle="Execute after" title="Queued Transactions"
+              :blockexplorer="blockexplorer" :dateFormatter="tx => formatDate(tx.actionDate + guardInfo.timelockDuration)" dateTitle="Execute after" title="Queued Transactions" :owners="safeInfo.owners" :threshold="safeInfo.threshold"
               @cancel="(txHash, timestampPos, timestamp) => transactionAction.cancelTransaction(guardInfo.address, txHash, timestampPos, timestamp)"/>
-            <Transactions :transactions="transactions.filter(t=>t.state==STATES.CANCELED)"
+            <Transactions :transactions="transactions.filter(t=>t.state==STATES.CANCELED)" :owners="safeInfo.owners" :threshold="safeInfo.threshold"
               :blockexplorer="blockexplorer" :dateFormatter="tx => formatDate(tx.actionDate)" dateTitle="Cancellation date" title="Canceled Transactions" />
           </div>
         </div>

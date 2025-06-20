@@ -5,13 +5,13 @@ import safeABI from './SafeABI.json';
 import ProxyAdminABI from './ProxyAdminABI.json';
 import ProxyABI from './ProxyABI.json';
 import SafeAppsSDK from '@safe-global/safe-apps-sdk';
-import { initOwnerRetriever } from "./getOwners.js";
 
-let guardAddress;
-let safeAddress;
-let provider;
-export let contract;
-let queueCallback;
+let guardAddress = null;
+let safeAddress = null;
+let provider = null;
+let guardContract = null;
+let safeContract = null;
+let queueCallback = null;
 export const zeroAddress = '0x0000000000000000000000000000000000000000';
 
 const sdk = new SafeAppsSDK({ allowedDomains: [/app\.safe\.global$/] });
@@ -36,19 +36,17 @@ export const EVENT_NAMES_PROXY = {
 }
 let contractOldGuard = null;
 export function defineListenersGuard(transactions, configCallback, updateLastQueueTime) {
-  if(contract) {
+  if(guardContract) {
     if(contractOldGuard)
       contractOldGuard.removeAllListeners();
-    Object.values(EVENT_NAMES).forEach(eventName => contract.on(eventName, (...args) => eventListener(transactions, ...args).then(eventData => updateLastQueueTime(eventData))));
-    contract.on("TimelockConfigChanged", () => loadConfig().then(timelockConfig => configCallback(timelockConfig)));
-    contractOldGuard = contract;
+    Object.values(EVENT_NAMES).forEach(eventName => guardContract.on(eventName, (...args) => eventListener(transactions, ...args).then(eventData => updateLastQueueTime(eventData))));
+    guardContract.on("TimelockConfigChanged", () => loadConfig().then(timelockConfig => configCallback(timelockConfig)));
+    contractOldGuard = guardContract;
   }
 }
 export function defineListenersSafe(callback) {
-  if(provider) {
-    const safeContract = new ethers.Contract(safeAddress, safeABI, provider);
+  if(safeContract)
     Object.values(SAFE_EVENT_NAMES).forEach(eventName => safeContract.on(eventName, (...args) => callback(...args)));
-  }
 }
 export async function initSafe(_queueCallback) {
   console.log("initSafe - Set a timeout explicitly to avoid indefinite hangs, rejects after 3sec");
@@ -58,9 +56,12 @@ export async function initSafe(_queueCallback) {
   const safeInfo = await Promise.race([sdk.safe.getInfo(), timeout]);
   console.log("initSafe - safeInfo=", safeInfo);
   safeAddress = safeInfo.safeAddress;
+  guardAddress = safeInfo.guard;
   if(window.ethereum) {
     provider = new ethers.providers.Web3Provider(window.ethereum);
-    initOwnerRetriever(safeAddress, provider);
+    safeContract = new ethers.Contract(safeAddress, safeABI, provider);
+    if(safeInfo.guard)
+      guardContract = new ethers.Contract(guardAddress, guardABI, provider);
   }
   return {threshold: safeInfo.threshold, owners: safeInfo.owners, network: safeInfo.network, chainId: safeInfo.chainId, chainInfoPromise, version: safeInfo.version, guardAddress: safeInfo.guard, safeAddress, buildInProvider: Boolean(window.ethereum)};
 }
@@ -83,9 +84,9 @@ function executeTransactionHelper(to, moduleAbi, functionName, args) {
   return executeTransaction(to, '0', buildTxData(moduleAbi, functionName, args))
 }
 async function loadConfig() {
-  console.log("loadConfig - contract=" + Boolean(contract));
-  if(!contract) return null;
-  return Promise.all([contract.timelockConfig(), contract.quorumCancel().catch(()=>0), contract.quorumExecute().catch(()=>0)])
+  console.log("loadConfig - guardContract=" + Boolean(guardContract));
+  if(!guardContract) return null;
+  return Promise.all([guardContract.timelockConfig(), guardContract.quorumCancel().catch(()=>0), guardContract.quorumExecute().catch(()=>0)])
   .then(([timelockConfig, quorumCancel, quorumExecute]) => ({
     throttle: timelockConfig.throttle.toNumber(),
     limitNoTimelock: ethers.utils.formatEther(timelockConfig.limitNoTimelock),
@@ -136,6 +137,9 @@ export async function setGuard(existingTimelockGuard, mewGuardAddress) {
   else
     return executeTransactionHelper(safeAddress, safeAbi, functionName, args);
 }
+export async function removeOwner(prevOwner, owner, threshold) {
+  return queueTransactionHelper(safeAddress, '0', "function removeOwner(address prevOwner, address owner, uint256 _threshold)", "removeOwner", [prevOwner === null ? "0x0000000000000000000000000000000000000001" : prevOwner, owner, threshold])
+}
 export async function upgradeGuard(guardProxyAdmin, guardProxy, newGuardImp) {
   console.log("upgradeGuard - newGuardImp=" + newGuardImp);
   return queueTransactionHelper(guardProxyAdmin, '0', 'function upgrade(address proxy, address implementation)', "upgrade", [guardProxy, newGuardImp])
@@ -143,7 +147,7 @@ export async function upgradeGuard(guardProxyAdmin, guardProxy, newGuardImp) {
 export async function setProvider(providerURL) {
   console.log("setProvider - providerURL=" + providerURL);
   provider =  new ethers.providers.JsonRpcProvider(providerURL);
-  initOwnerRetriever(safeAddress, provider);
+  safeContract = new ethers.Contract(safeAddress, safeABI, provider);
   return provider.getNetwork();
 }
 export function loadGuardData(_guardAddress, eventListenerProxy) {
@@ -151,14 +155,18 @@ export function loadGuardData(_guardAddress, eventListenerProxy) {
   guardAddress = _guardAddress;
   if(guardAddress && provider) {
     console.log("loadGuardData - calling backend");
-    contract = new ethers.Contract(guardAddress, guardABI, provider);
-    return {p_tx: loadTransactions(), p_version: getGuardVersion(), p_safe: contract.safe(), p_config: loadConfig(), p_proxy: getProxyDetails(guardAddress, eventListenerProxy)};
+    if(_guardAddress != guardAddress) {
+      guardAddress = _guardAddress;
+      guardContract = new ethers.Contract(guardAddress, guardABI, provider);
+    }
+    return {p_tx: loadTransactions(), p_version: getGuardVersion(), p_safe: guardContract.safe(), p_config: loadConfig(), p_proxy: getProxyDetails(guardAddress, eventListenerProxy)};
   }
-  else return null;
+  guardAddress = _guardAddress;
+  return null;
 }
 export async function getGuardVersion() {
-  if(!contract) return null;
-  return Promise.all([contract.VERSION(), contract.TESTED_SAFE_VERSIONS()]);
+  if(!guardContract) return null;
+  return Promise.all([guardContract.VERSION(), guardContract.TESTED_SAFE_VERSIONS()]);
 }
 let contractsOldProxy = null;
 export async function getProxyDetails(proxyAddress, eventListenerProxy) {
@@ -203,9 +211,9 @@ export async function getProxyDetails(proxyAddress, eventListenerProxy) {
 async function loadTransactions() {
   console.log("loadTransactions - retrieve all active transactions");
 
-  if(!contract)
+  if(!guardContract)
     return [];
-  const eventsDataByName = await Promise.all(Object.values(EVENT_NAMES).map(eventName => contract.queryFilter(contract.filters[eventName]()).then(events => Promise.all(events.map(e => e && e.args && transactionBuilder(e))))));
+  const eventsDataByName = await Promise.all(Object.values(EVENT_NAMES).map(eventName => guardContract.queryFilter(guardContract.filters[eventName]()).then(events => Promise.all(events.map(e => e && e.args && transactionBuilder(e))))));
   const eventsData = eventsDataByName.flat().sort((a,b) => a.actionDate-b.actionDate);
   console.log("loadTransactions - #eventsData=" + eventsData.length);
 
@@ -303,4 +311,88 @@ function transactionBuilder(event) {
     return Promise.all([p, getTransactionData(event).catch(e => { console.error("getTransactionData", e); return { }; })])
     .then(([eventData, txData]) => ({...eventData, ...txData}));
   return p;
+}
+export async function getSignersFromSafeTx(txHash) {
+  console.log("getSignersFromSafeTx - txHash=" + txHash);
+  const tx = await provider.getTransaction(txHash);
+  return Promise.all([getSignersFromSafeTx_Helper(tx), getQuorumsFromSafeTx(tx.blockNumber)])
+  .then(([signersInfo, quorums])=>({signersInfo, quorums}));
+}
+function getQuorumsFromSafeTx(blockNumber) {
+  return Promise.all([safeContract.getThreshold({ blockTag: blockNumber - 1 }),
+    guardContract.quorumCancel({ blockTag: blockNumber - 1 }).catch(() => "?"),
+    guardContract.quorumExecute({ blockTag: blockNumber - 1 }).catch(() => "?")])
+  .then(([threshold, quorumCancel, quorumExecute])=>({threshold, quorumCancel, quorumExecute}));
+}
+async function getSignersFromSafeTx_Helper(tx) {
+  const nonce = await safeContract.nonce({ blockTag: tx.blockNumber - 1 });
+  const iface = new ethers.utils.Interface(safeABI);
+  const parsedTx = iface.parseTransaction({ data: tx.data, value: tx.value });
+
+  const { to, value, data, operation, safeTxGas, baseGas, gasPrice, gasToken, refundReceiver, signatures } = parsedTx.args;
+
+  const txHashToSign = await safeContract.getTransactionHash(
+    to, value.toNumber(), data, operation,
+    safeTxGas.toNumber(), baseGas.toNumber(), gasPrice.toNumber(),
+    gasToken, refundReceiver, nonce.toNumber()
+  );
+
+  return parseSafeSignatures(signatures, txHashToSign);
+}
+function parseSafeSignatures(signatures, txHashToSign) {
+  console.log("parseSafeSignatures - txHashToSign=" + txHashToSign + ", signatures=" + signatures);
+  const sigs = ethers.utils.arrayify(signatures);
+  const signers = [];
+
+  for (let i = 0; i < sigs.length; i += 65) {
+    const r = sigs.slice(i, i + 32);
+    const s = sigs.slice(i + 32, i + 64);
+    let v = sigs[i + 64];
+    console.log("parseSafeSignatures - [i, v]=" + [i, v]);
+
+    // Check if it's a contract signature
+    if (v === 0) {
+      // Contract signatures (v=0) are followed by a dynamic byte array, need custom parsing
+      // Just extract the signer from r (last 20 bytes of r)
+      const signer = ethers.utils.getAddress(ethers.utils.hexDataSlice(r, 12));
+      signers.push({ signer, type: 'contract-signature' });
+      continue;
+    }
+
+    // Approved hash (e.g. via eth_signTypedData and pre-approval)
+    if (v === 1) {
+      const signer = ethers.utils.getAddress(ethers.utils.hexDataSlice(r, 12));
+      signers.push({ signer, type: 'approved-hash' });
+      continue;
+    }
+
+    // eth_sign signatures: v > 30
+    if (v > 30) {
+      v -= 4;
+      const sig = ethers.utils.splitSignature({
+        r: ethers.utils.hexlify(r),
+        s: ethers.utils.hexlify(s),
+        v,
+      });
+      const signer = ethers.utils.recoverAddress(ethers.utils.hashMessage(ethers.utils.arrayify(txHashToSign)), sig);
+      signers.push({ signer, type: 'eth_sign' });
+      continue;
+    }
+
+    // EIP-712 signatures (v == 27 or 28)
+    if (v === 27 || v === 28) {
+      const sig = ethers.utils.splitSignature({
+        r: ethers.utils.hexlify(r),
+        s: ethers.utils.hexlify(s),
+        v,
+      });
+      const signer = ethers.utils.recoverAddress(txHashToSign, sig);
+      signers.push({ signer, type: 'eip-712' });
+      continue;
+    }
+
+    // Unknown or unsupported type
+    signers.push({ signer: null, type: 'unknown', rawV: v });
+  }
+  return signers;
 }
