@@ -348,7 +348,6 @@ function parseSafeSignatures(signatures, txHashToSign) {
     const r = sigs.slice(i, i + 32);
     const s = sigs.slice(i + 32, i + 64);
     let v = sigs[i + 64];
-    console.log("parseSafeSignatures - [i, v]=" + [i, v]);
 
     // Check if it's a contract signature
     if (v === 0) {
