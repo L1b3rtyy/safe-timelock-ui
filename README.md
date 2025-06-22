@@ -43,6 +43,9 @@ vercel
 ```
 2. Build and deploy
 ```
-vercel --prod
+npm run deploy
 ```
+
+This will pre-increment the patch version in ```package.json``` and then call ```vercel --prod``.
+
 3. First time only: [Add a custom Safe App](https://help.safe.global/en/articles/40859-add-a-custom-safe-app)
