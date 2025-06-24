@@ -38,6 +38,7 @@
   const connected = computed(() => {
     return Boolean(safeInfo.value && safeInfo.value.safeAddress && guardInfo.value.address && safeInfo.value.provider)
   })
+  const nbOwners = computed(() => safeInfo.value.owners.length);
   const issues = computed(() => {
     const res = []
     if(guardInfo.value.safeAddress && guardInfo.value.safeAddress != safeInfo.value.safeAddress)  res.push("Guard not pointing to Safe (points to " + guardInfo.value.safeAddress + ")");
@@ -314,7 +315,7 @@ M:  for (let i = 0; i < array.length; i++) {
 <template>
   <div>
     <h1>Safe Timelock</h1>
-    <Deploy v-if="isDeployOpen && safeInfo" :model-value="isDeployOpen" :guardAddress="latestGuardAddress()" :safeAddress="safeInfo.safeAddress" :threshold="safeInfo.threshold" :nbOwners="safeInfo.owners.length"
+    <Deploy v-if="isDeployOpen && safeInfo" :model-value="isDeployOpen" :guardAddress="latestGuardAddress()" :safeAddress="safeInfo.safeAddress" :threshold="safeInfo.threshold" :nbOwners="nbOwners"
       :blockexplorer="blockexplorer"
       @close="isDeployOpen=false" @setGuard="guardAddress => changeGuard(setGuard(false, guardAddress))"/>
     <a href="https://github.com/L1b3rtyy/safe-timelock-ui"><font-awesome-icon icon="fa-brands fa-github" style="color: white"/></a>
@@ -456,14 +457,14 @@ M:  for (let i = 0; i < array.length; i++) {
               <td rowspan="2" style="text-align: left;">Min quorum</td>
               <td style="text-align: left;">Cancel</td>
               <td >
-                <input :disabled="!editingConfig" v-model.number="guardInfo.quorumCancel" type="number" min="0" :max="safeInfo.threshold" step="1" class="narrow"/>
+                <input :disabled="!editingConfig" v-model.number="guardInfo.quorumCancel" type="number" min="0" :max="nbOwners" step="1" class="narrow"/>
                 <myTooltip emoji="✅" :text="guardInfoOld.quorumCancel > safeInfo.threshold ? 'Cancellation requires ' + guardInfoOld.quorumCancel + ' signers' : 'Cancellation enabled by default'" />
               </td>
             </tr>
             <tr>
               <td style="text-align: left;">Execute</td>
               <td>
-                <input :disabled="!editingConfig" v-model.number="guardInfo.quorumExecute" type="number" min="0" :max="safeInfo.threshold" step="1" class="narrow"/>
+                <input :disabled="!editingConfig" v-model.number="guardInfo.quorumExecute" type="number" min="0" :max="nbOwners" step="1" class="narrow"/>
                 <myTooltip v-if="directExecutionEnabled" emoji="✅" text="Direct execution enabled" />
                 <myTooltip v-else emoji="⏸️" text="Direct execution disabled" />
               </td>
