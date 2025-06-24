@@ -35,7 +35,7 @@
   const buildInProvider = ref(Boolean(window.ethereum));
   const providerStr = ref(buildInProvider.value && "BUILD IN");
   const directExecutionEnabled = computed(() => {
-    return guardInfoOld.value.quorumExecute > safeInfo.value.threshold;
+    return guardInfoOld.value.quorumExecute > safeInfo.value.threshold && buildInProvider.value;
   })
   const connected = computed(() => {
     return Boolean(safeInfo.value && safeInfo.value.safeAddress && guardInfo.value.address && providerStr.value)
@@ -460,7 +460,8 @@ M:  for (let i = 0; i < array.length; i++) {
               <td style="text-align: left;">Cancel</td>
               <td >
                 <input :disabled="!editingConfig" v-model.number="guardInfo.quorumCancel" type="number" min="0" :max="nbOwners" step="1" class="narrow"/>
-                <myTooltip emoji="✅" :text="guardInfoOld.quorumCancel > safeInfo.threshold ? 'Cancellation requires ' + guardInfoOld.quorumCancel + ' signers' : 'Cancellation enabled by default'" />
+                <myTooltip v-if="!buildInProvider && guardInfoOld.quorumCancel > safeInfo.threshold" emoji="⚠️" text="No build in provider (eg Metamask) detected and cancellation requires additional signers" />
+                <myTooltip v-else emoji="✅" :text="guardInfoOld.quorumCancel > safeInfo.threshold ? 'Cancellation requires ' + guardInfoOld.quorumCancel + ' signers' : 'Cancellation enabled by default'" />
               </td>
             </tr>
             <tr>
@@ -468,6 +469,7 @@ M:  for (let i = 0; i < array.length; i++) {
               <td>
                 <input :disabled="!editingConfig" v-model.number="guardInfo.quorumExecute" type="number" min="0" :max="nbOwners" step="1" class="narrow"/>
                 <myTooltip v-if="directExecutionEnabled" emoji="✅" text="Direct execution enabled" />
+                <myTooltip v-else-if="!buildInProvider" emoji="⏸️" text="No build in provider (eg Metamask) detected" />
                 <myTooltip v-else emoji="⏸️" text="Direct execution disabled" />
               </td>
             </tr>
@@ -504,8 +506,9 @@ M:  for (let i = 0; i < array.length; i++) {
             {{ errorLoadGuard }}
           </div>
           <div v-else class="app-container">
-            <TransactionAction :threshold="safeInfo.threshold" :quorumExecute="guardInfoOld.quorumExecute" :quorumCancel="guardInfoOld.quorumCancel" :safeAddress="safeInfo.safeAddress" :owners="safeInfo.owners" ref="transactionAction"/>
-            <Transactions :transactions="transactions.filter(t=>t.state==STATES.QUEUED)" :canCancel="guardInfoOld.quorumCancel <= safeInfo.threshold" :showAction="true" :disabled="tx => currentTime < (tx.actionDate + guardInfo.timelockDuration)"
+            <TransactionAction :threshold="safeInfo.threshold" :quorumExecute="guardInfoOld.quorumExecute" :quorumCancel="guardInfoOld.quorumCancel" :safeAddress="safeInfo.safeAddress" :owners="safeInfo.owners" :buildInProvider="buildInProvider"
+              ref="transactionAction"/>
+            <Transactions :transactions="transactions.filter(t=>t.state==STATES.QUEUED)" :buildInProvider="buildInProvider" :canCancel="guardInfoOld.quorumCancel <= safeInfo.threshold" :showAction="true" :disabled="tx => currentTime < (tx.actionDate + guardInfo.timelockDuration)"
               :blockexplorer="blockexplorer" :dateFormatter="tx => formatDate(tx.actionDate + guardInfo.timelockDuration)" dateTitle="Execute after" title="Queued Transactions" :owners="safeInfo.owners" :threshold="safeInfo.threshold"
               @cancel="(txHash, timestampPos, timestamp) => transactionAction.cancelTransaction(guardInfo.address, txHash, timestampPos, timestamp)"/>
             <Transactions :transactions="transactions.filter(t=>t.state==STATES.CANCELED)" :owners="safeInfo.owners" :threshold="safeInfo.threshold"

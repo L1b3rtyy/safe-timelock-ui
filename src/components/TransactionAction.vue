@@ -23,7 +23,7 @@
         <div>
           <button :disabled="collectingSignatures" @click="callQueueTransaction()">Queue</button>
         </div>
-        <div v-if="quorumExecute > threshold">
+        <div v-if="buildInProvider && quorumExecute > threshold">
           Execute<br>
           <button :disabled="collectingSignaturesCancel" @click="nbSignatures >= quorumExecute ? callExecuteTransaction() : addSignatureExecute()">{{directExecuteBtnTxt}}</button>
           <myTooltip v-if="collectingSignaturesExecute" @click="status='';cancelCollectingSignatures()" icon="fa-solid fa-cancel" text="Cancel signature collection"/>
@@ -31,7 +31,7 @@
           Signatures:
           <myTooltip :emoji="(collectingSignaturesExecute ? nbSignatures : 0)+'/'+quorumExecute" :text="collectingSignaturesExecute ? ownersSignedDisp : null"/>
         </div>
-        <div v-if="quorumCancel > threshold">
+        <div v-if="buildInProvider && quorumCancel > threshold">
           Cancel<br>
           <button :disabled="collectingSignaturesExecute || !collectingSignaturesCancel" @click="nbSignatures >= quorumCancel ? callExecuteTransaction() : addSignatureHelper()">{{cancelBtnTxt}}</button>
           <myTooltip v-if="collectingSignaturesCancel" @click="status='';cancelCollectingSignatures(true)" icon="fa-solid fa-cancel" text="Cancel signature collection"/>
@@ -73,7 +73,11 @@ const props = defineProps({
   owners: {
     type: Array,
     required: true
-  }
+  },
+  buildInProvider: {
+    type: Boolean,
+    required: true
+  }, 
 })
 const isBlinking = ref(false);
 

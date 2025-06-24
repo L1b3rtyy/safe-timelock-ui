@@ -43,9 +43,3 @@ async function getSafeSdk(safeAddress, owners, safeTx) {
   const safeSdk = await Safe.init({ provider: window.ethereum, signer, safeAddress });
   return {safeSdk, signer};
 }
-
-/* Listen for manual account changes in the MetaMask UI as well */
-window.ethereum.on('accountsChanged', accounts => {
-  console.log('User picked a different account', accounts);
-  // Optionally update UI or re-enable the “Sign” button
-})

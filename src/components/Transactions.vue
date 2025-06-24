@@ -36,7 +36,11 @@
     },
     canCancel: {
       type: Boolean,
-      default: false
+      required: true
+    },
+    buildInProvider: {
+      type: Boolean,
+      required: true
     },
     owners: {
       type: Array,
@@ -107,7 +111,7 @@
           </td> 
           <td v-if="showAction" style="white-space: nowrap;">
             <button style="padding: .2em" :disabled="disabled(tx)" @click="execute(tx)">Execute</button>
-            <button style="padding: .2em" @click="cancel(tx.txHash, tx.actionDate)">Cancel</button>
+            <button style="padding: .2em" :disabled="!buildInProvider && !canCancel" @click="cancel(tx.txHash, tx.actionDate)">Cancel</button>
           </td>
           <td v-if="tx.signers && tx.signers.signersInfo" style="white-space: nowrap;">
             {{ tx.signers.signersInfo.length + (tx.signers.signersInfo.length>1 ? ' signers': ' signer')}}

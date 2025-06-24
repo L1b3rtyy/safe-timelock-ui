@@ -148,6 +148,8 @@ export async function setProvider(providerURL) {
   console.log("setProvider - providerURL=" + providerURL);
   provider =  new ethers.providers.JsonRpcProvider(providerURL);
   safeContract = new ethers.Contract(safeAddress, safeABI, provider);
+  if(guardAddress)
+    guardContract = new ethers.Contract(guardAddress, guardABI, provider);
   return provider.getNetwork();
 }
 export function loadGuardData(_guardAddress, eventListenerProxy) {
