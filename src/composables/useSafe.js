@@ -152,16 +152,14 @@ export async function setProvider(providerURL) {
 }
 export function loadGuardData(_guardAddress, eventListenerProxy) {
   console.log("loadGuardData - guardAddress=" + _guardAddress);
+  const diffGuard = _guardAddress != guardAddress;
   guardAddress = _guardAddress;
   if(guardAddress && provider) {
     console.log("loadGuardData - calling backend");
-    if(_guardAddress != guardAddress) {
-      guardAddress = _guardAddress;
+    if(diffGuard)
       guardContract = new ethers.Contract(guardAddress, guardABI, provider);
-    }
     return {p_tx: loadTransactions(), p_version: getGuardVersion(), p_safe: guardContract.safe(), p_config: loadConfig(), p_proxy: getProxyDetails(guardAddress, eventListenerProxy)};
   }
-  guardAddress = _guardAddress;
   return null;
 }
 export async function getGuardVersion() {
@@ -170,6 +168,7 @@ export async function getGuardVersion() {
 }
 let contractsOldProxy = null;
 export async function getProxyDetails(proxyAddress, eventListenerProxy) {
+  console.log("getProxyDetails - proxyAddress=" + proxyAddress);
   const implSlot = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
   const adminSlot = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
 

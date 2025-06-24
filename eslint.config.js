@@ -8,6 +8,7 @@ export default [
   // ...pluginVue.configs['flat/vue2-recommended'], // Use this if you are using Vue.js 2.x.
   {
     rules: {
+      "vue/v-on-event-hyphenation": "off",
       "vue/max-attributes-per-line": "off",
       "vue/singleline-html-element-content-newline": "off",
       "vue/mustache-interpolation-spacing": "off",

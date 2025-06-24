@@ -2,19 +2,26 @@
 
 Basic UI to manage the SafeTimelock contract implemented at https://github.com/L1b3rtyy/safe-timelock-contract
 
+## Using it
+
+As of writing this the UI is deployed and hosted at https://safe-timelock-ui.vercel.app/.
+
+It is stateless and you can deploy it on your Safe using the instructions on how to [Add a custom Safe App](https://help.safe.global/en/articles/40859-add-a-custom-safe-app)
+
 ## Functionality
 
 Allows:
+- Deploying a new guard contract 
+- Setting and removing the Safe guard
 - Queuing, cancelling and executing transactions
 - Changing the configuration of the SafeTimelock
-- Setting and removing the Safe guard
-- Upgrade the SafeTimelock implementation if upgradable
+- Upgrading the SafeTimelock implementation if upgradable
 - Gathering signatures on top of the Safe's threshold to handle the cases where
   * Additional signatures are needed to cancel a transaction (```quorumCancel > threshold```)
   * Direct transaction execution is enabled (```quorumExecute > threshold```) 
 - Removing owners of suspicious transactions
 
-More info on how to create a Safe App: [How to create a Safe App with Safe Apps SDK and list it](https://help.safe.global/en/articles/145503-how-to-create-a-safe-app-with-safe-apps-sdk-and-list-it)
+More info on [How to create a Safe App with Safe Apps SDK and list it](https://help.safe.global/en/articles/145503-how-to-create-a-safe-app-with-safe-apps-sdk-and-list-it)
 
 Note: usage of ```quorumCancel``` and ```quorumExecute``` is limited to gathering signatures locally on the same machine. Having a Safe' like experience would require securely gathering signatures on a remote server and sharing them with the eventual executor. 
 

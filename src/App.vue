@@ -7,6 +7,7 @@
   import { ref, onMounted, computed, useTemplateRef  } from 'vue';
   import { version } from "../package.json";
   import versions from "./composables/versions.json";
+  import Deploy from "./components/Deploy.vue";
   
   const transactionAction = useTemplateRef(null);
   const newProvider = ref(null);
@@ -30,6 +31,7 @@
   const settingProviderCall = ref(false);
   const userMsgDuration = 10000;
   const lastQueueTime = ref(0);
+  const isDeployOpen = ref(false);
   const directExecutionEnabled = computed(() => {
     return guardInfoOld.value.quorumExecute > safeInfo.value.threshold;
   })
@@ -161,7 +163,7 @@ M:  for (let i = 0; i < array.length; i++) {
     return Promise.all([
       p_tx.then(txs => {
         console.log('App._loadGuardData - received transactions');
-        lastQueueTime.value = Math.max(...txs.map(x=>x.queueDate));
+        lastQueueTime.value = txs && txs.length ? Math.max(...txs.map(x=>x.queueDate)) : 0;
         transactions.value = txs.filter(tx => tx.state == STATES.QUEUED || tx.state == STATES.CANCELED);
         for(const tx of transactions.value)
           getSignersFromSafeTx(tx.realHash).then(signers => tx.signers = signers);
@@ -312,6 +314,9 @@ M:  for (let i = 0; i < array.length; i++) {
 <template>
   <div>
     <h1>Safe Timelock</h1>
+    <Deploy v-if="isDeployOpen && safeInfo" :model-value="isDeployOpen" :guardAddress="latestGuardAddress()" :safeAddress="safeInfo.safeAddress" :threshold="safeInfo.threshold" :nbOwners="safeInfo.owners.length"
+      :blockexplorer="blockexplorer"
+      @close="isDeployOpen=false" @setGuard="guardAddress => changeGuard(setGuard(false, guardAddress))"/>
     <a href="https://github.com/L1b3rtyy/safe-timelock-ui"><font-awesome-icon icon="fa-brands fa-github" style="color: white"/></a>
     <div v-if="errorConnecting">
       {{ errorConnecting }}
@@ -362,7 +367,8 @@ M:  for (let i = 0; i < array.length; i++) {
             </td>
             <td v-else-if="!settingGuard">
               <span style="color: red;">GUARD NOT SET ⚠️</span>
-              <myTooltip @click="resetEdit();settingGuard=true" icon="fa-solid fa-edit" text="Set Guard"/>
+              <myTooltip @click="resetEdit();settingGuard=true" icon="fa-solid fa-edit" text="Set Guard to an already deployed contract"/>
+              <myTooltip @click="resetEdit();isDeployOpen=true" icon="fa-solid fa-database" text="Deploy a new contract"/>
             </td>
             <td v-else>
               <input :disabled="addingGuard" v-model.lazy="mewGuardAddress" type="text" placeholder="Enter Guard address" style="width: 85%;"/>
@@ -450,14 +456,14 @@ M:  for (let i = 0; i < array.length; i++) {
               <td rowspan="2" style="text-align: left;">Min quorum</td>
               <td style="text-align: left;">Cancel</td>
               <td >
-                <input :disabled="!editingConfig" v-model.number="guardInfo.quorumCancel" type="number" min="0" step="any" class="narrow"/>
+                <input :disabled="!editingConfig" v-model.number="guardInfo.quorumCancel" type="number" min="0" :max="safeInfo.threshold" step="1" class="narrow"/>
                 <myTooltip emoji="✅" :text="guardInfoOld.quorumCancel > safeInfo.threshold ? 'Cancellation requires ' + guardInfoOld.quorumCancel + ' signers' : 'Cancellation enabled by default'" />
               </td>
             </tr>
             <tr>
               <td style="text-align: left;">Execute</td>
               <td>
-                <input :disabled="!editingConfig" v-model.number="guardInfo.quorumExecute" type="number" min="0" step="any" class="narrow"/>
+                <input :disabled="!editingConfig" v-model.number="guardInfo.quorumExecute" type="number" min="0" :max="safeInfo.threshold" step="1" class="narrow"/>
                 <myTooltip v-if="directExecutionEnabled" emoji="✅" text="Direct execution enabled" />
                 <myTooltip v-else emoji="⏸️" text="Direct execution disabled" />
               </td>
