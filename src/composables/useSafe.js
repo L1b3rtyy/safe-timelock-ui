@@ -63,7 +63,7 @@ export async function initSafe(_queueCallback) {
     if(safeInfo.guard)
       guardContract = new ethers.Contract(guardAddress, guardABI, provider);
   }
-  return {threshold: safeInfo.threshold, owners: safeInfo.owners, network: safeInfo.network, chainId: safeInfo.chainId, chainInfoPromise, version: safeInfo.version, guardAddress: safeInfo.guard, safeAddress, buildInProvider: Boolean(window.ethereum)};
+  return {threshold: safeInfo.threshold, owners: safeInfo.owners, network: safeInfo.network, chainId: safeInfo.chainId, chainInfoPromise, version: safeInfo.version, guardAddress: safeInfo.guard, safeAddress};
 }
 function getEventTime(event) {
   return provider && provider.getBlock(event.blockNumber).then(block => block.timestamp);

@@ -32,11 +32,13 @@
   const userMsgDuration = 10000;
   const lastQueueTime = ref(0);
   const isDeployOpen = ref(false);
+  const buildInProvider = ref(Boolean(window.ethereum));
+  const providerStr = ref(buildInProvider.value && "BUILD IN");
   const directExecutionEnabled = computed(() => {
     return guardInfoOld.value.quorumExecute > safeInfo.value.threshold;
   })
   const connected = computed(() => {
-    return Boolean(safeInfo.value && safeInfo.value.safeAddress && guardInfo.value.address && safeInfo.value.provider)
+    return Boolean(safeInfo.value && safeInfo.value.safeAddress && guardInfo.value.address && providerStr.value)
   })
   const nbOwners = computed(() => safeInfo.value.owners.length);
   const issues = computed(() => {
@@ -235,7 +237,7 @@ M:  for (let i = 0; i < array.length; i++) {
     settingProviderCall.value = true;
     setProvider(providerURL)
     .then(() => {
-      safeInfo.value.provider = "EXTERNAL - " + providerURL.substring(0, 25) + "...";
+      providerStr.value = "EXTERNAL - " + providerURL.substring(0, 25) + "...";
       if(guardInfo.value.address) {
         console.log('App.setProvider - load Guard data');
         _loadGuardData(guardInfo.value.address);
@@ -286,13 +288,13 @@ M:  for (let i = 0; i < array.length; i++) {
   onMounted(async () => {
     try {
       console.log('App.onMounted - connecting to Safe');
-      const {network, chainId, safeAddress, guardAddress, chainInfoPromise, buildInProvider, version, threshold, owners} = await initSafe(
+      const {network, chainId, safeAddress, guardAddress, chainInfoPromise, version, threshold, owners} = await initSafe(
         (to, value, data) => {
           if(directExecutionEnabled.value)
             transactionAction.value.setFields(to, value, data);
           return directExecutionEnabled.value;
       });
-      safeInfo.value = {network, chainId, safeAddress, provider: buildInProvider && "BUILD IN", version, threshold, owners};
+      safeInfo.value = {network, chainId, safeAddress, version, threshold, owners};
       
       console.log('App.onMounted - load Guard data');
       _loadGuardData(guardAddress);
@@ -315,7 +317,7 @@ M:  for (let i = 0; i < array.length; i++) {
 <template>
   <div>
     <h1>Safe Timelock</h1>
-    <Deploy v-if="isDeployOpen && safeInfo" :model-value="isDeployOpen" :guardAddress="latestGuardAddress()" :safeAddress="safeInfo.safeAddress" :threshold="safeInfo.threshold" :nbOwners="nbOwners"
+    <Deploy v-if="buildInProvider && isDeployOpen && safeInfo" :model-value="isDeployOpen" :guardAddress="latestGuardAddress()" :safeAddress="safeInfo.safeAddress" :threshold="safeInfo.threshold" :nbOwners="nbOwners"
       :blockexplorer="blockexplorer"
       @close="isDeployOpen=false" @setGuard="guardAddress => changeGuard(setGuard(false, guardAddress))"/>
     <a href="https://github.com/L1b3rtyy/safe-timelock-ui"><font-awesome-icon icon="fa-brands fa-github" style="color: white"/></a>
@@ -414,7 +416,7 @@ M:  for (let i = 0; i < array.length; i++) {
           </tr>
           <tr>
             <td colspan="2" style="text-align: left;">Provider</td>
-            <td v-if="safeInfo.provider">{{ safeInfo.provider }}</td>
+            <td v-if="providerStr">{{ providerStr }}</td>
             <td v-else-if="!settingProvider">
               <span v-if="!settingProviderCall" style="color: red;">NO PROVIDER ⚠️</span>
               <span v-else>IN PROGRESS...</span>

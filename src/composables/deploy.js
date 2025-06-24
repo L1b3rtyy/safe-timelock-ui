@@ -30,6 +30,8 @@ export async function deploy(implementationAddress, safeAddress, timelockDuratio
   console.log("deploy - params=" + [implementationAddress, safeAddress, timelockDuration, throttle, limitNoTimelock, quorumCancel, quorumExecute]);
   if(proxyAdminAddress && proxyAddress)
     throw new Error("Already deployed, reset to redeploy");
+  if(!window.ethereum)
+    throw new Error("No wallet detected (e.g. Metamask)");
   const provider = new ethers.providers.Web3Provider(window.ethereum);
   await provider.send("eth_requestAccounts", []);
   const signer = provider.getSigner();
