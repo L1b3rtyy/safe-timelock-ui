@@ -371,7 +371,7 @@ M:  for (let i = 0; i < array.length; i++) {
             <td v-else-if="!settingGuard">
               <span style="color: red;">GUARD NOT SET ⚠️</span>
               <myTooltip @click="resetEdit();settingGuard=true" icon="fa-solid fa-edit" text="Set Guard to an already deployed contract"/>
-              <myTooltip @click="resetEdit();isDeployOpen=true" icon="fa-solid fa-database" text="Deploy a new contract"/>
+              <myTooltip v-if="buildInProvider" @click="resetEdit();isDeployOpen=true" icon="fa-solid fa-database" text="Deploy a new contract"/>
             </td>
             <td v-else>
               <input :disabled="addingGuard" v-model.lazy="mewGuardAddress" type="text" placeholder="Enter Guard address" style="width: 85%;"/>
@@ -461,7 +461,7 @@ M:  for (let i = 0; i < array.length; i++) {
               <td >
                 <input :disabled="!editingConfig" v-model.number="guardInfo.quorumCancel" type="number" min="0" :max="nbOwners" step="1" class="narrow"/>
                 <myTooltip v-if="!buildInProvider && guardInfoOld.quorumCancel > safeInfo.threshold" emoji="⚠️" text="No build in provider (eg Metamask) detected and cancellation requires additional signers" />
-                <myTooltip v-else emoji="✅" :text="guardInfoOld.quorumCancel > safeInfo.threshold ? 'Cancellation requires ' + guardInfoOld.quorumCancel + ' signers' : 'Cancellation enabled by default'" />
+                <myTooltip v-else-if="providerStr" emoji="✅" :text="guardInfoOld.quorumCancel > safeInfo.threshold ? 'Cancellation requires ' + guardInfoOld.quorumCancel + ' signers' : 'Cancellation enabled by default'" />
               </td>
             </tr>
             <tr>
@@ -469,8 +469,8 @@ M:  for (let i = 0; i < array.length; i++) {
               <td>
                 <input :disabled="!editingConfig" v-model.number="guardInfo.quorumExecute" type="number" min="0" :max="nbOwners" step="1" class="narrow"/>
                 <myTooltip v-if="directExecutionEnabled" emoji="✅" text="Direct execution enabled" />
-                <myTooltip v-else-if="!buildInProvider" emoji="⏸️" text="No build in provider (eg Metamask) detected" />
-                <myTooltip v-else emoji="⏸️" text="Direct execution disabled" />
+                <myTooltip v-else-if="providerStr && !buildInProvider" emoji="⏸️" text="No build in provider (eg Metamask) detected" />
+                <myTooltip v-else-if="providerStr" emoji="⏸️" text="Direct execution disabled" />
               </td>
             </tr>
             <tr>
