@@ -86,7 +86,7 @@ async function checkAddressReputation(trustedAddresses, address, chainId, ethers
   }
   catch (err) {
     console.error('API error during address analysis:', err.message);
-    alerts.push({ level: SEVERITY.CRITICAL, reason: 'Error during address analysis' });
+    alerts.push({ level: SEVERITY.HIGH, reason: 'Error during address analysis' });
   }
 
   return alerts;
@@ -185,7 +185,7 @@ export async function analyzeTransaction(toAddress, calldata, operation, chainId
     console.log("analyzeTransaction - parsed=", parsed);
     if(parsed) {
       if(operation != 0)
-        alerts.push({ level: SEVERITY.MEDIUM, reason: 'Delegate call detected' });
+        alerts.push({ level: 2*SEVERITY.MEDIUM, reason: 'Delegate call detected' });
 
       const upgradeFunctionNames = [
         'upgradeTo',
