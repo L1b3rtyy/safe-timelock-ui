@@ -55,6 +55,7 @@
   text-align: center;
   padding: 2px 5px;
   border-radius: 6px;
+  white-space: normal;
  
   /* Position the tooltip text */
   width: max-content;

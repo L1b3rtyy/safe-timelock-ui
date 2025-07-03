@@ -1,5 +1,6 @@
 <script setup>
   import myTooltip from './myTooltip.vue';
+  import Analysis from './Analysis.vue';
   import Copy from './Copy.vue';
   import { ref } from 'vue';
   import { executeTransaction, cancelTransaction, removeOwner } from '../composables/useSafe';
@@ -54,6 +55,7 @@
   
   const emit = defineEmits(['cancel'])
   const showSigners = ref(-1);
+  const txAnalysis = ref(null);
 
   function cancel(txHash, timestamp) {
     const timestampPos = props.transactions.filter(tx => tx.txHash == txHash).findIndex(tx => tx.actionDate == timestamp)
@@ -70,50 +72,60 @@
     const i = props.owners.indexOf(owner);
     return removeOwner(i == 0 ? null : props.owners[i-1], owner, props.threshold);
   }
+  function show(analysis) {
+    console.log("Transactions.show - analysis=", analysis);
+    txAnalysis.value = analysis;
+  }
 </script>
 
 <template>
   <div>
     <h2>{{ title }}</h2>
-
+    <Analysis v-if="txAnalysis" @close="txAnalysis=null" :analysis="txAnalysis"/>
     <div v-if="!transactions || transactions.length == 0">No transactions.</div>
     <table v-else class="transaction-table">
       <thead>
         <tr>
-          <th style="white-space: nowrap;">Transaction hash</th>
+          <th>Transaction hash</th>
           <th>To</th>
-          <th style="white-space: nowrap;">Value (ETH)</th>
+          <th>Value (ETH)</th>
           <th>Data</th>
           <th>{{dateTitle}}</th>
+          <th v-if="showAction">Alert Score</th>
           <th v-if="showAction">Action</th>
           <th style="width: 1%;">Signers</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="(tx, txIndex) in transactions" :key="tx.txHash">
-          <td style="white-space: nowrap;">
+          <td>
             <a :href="blockexplorer && blockexplorer.txHash.replace('\{\{txHash\}\}', tx.realHash)">{{ addressDisplay(tx.realHash) }}</a>
             <Copy :text="tx.realHash" />
           </td>
-          <td style="white-space: nowrap;">
+          <td>
             <a :href="blockexplorer && blockexplorer.address.replace('\{\{address\}\}', tx.to)">{{ addressDisplay(tx.to) }}</a>
             <Copy :text="tx.to" />
           </td>
           <td>{{ tx.value }}</td>
-          <td style="white-space: nowrap;">{{ truncate(tx.data, 20) }}
+          <td>{{ truncate(tx.data, 20) }}
             <Copy :text="tx.data" />
           </td>
-          <td style="white-space: nowrap;">{{ dateFormatter(tx) }}
+          <td>{{ dateFormatter(tx) }}
             <span v-if="showAction">
               <myTooltip v-if="disabled(tx)" emoji="❌" text="Timelock still active" />
               <myTooltip v-else emoji="✅" text="Timelock completed" />
             </span>
           </td> 
-          <td v-if="showAction" style="white-space: nowrap;">
+          <td v-if="showAction">
+            <span v-if="tx.analysis && tx.analysis.nbAlerts===0">No issue</span>
+            <myTooltip v-else-if="tx.analysis" @click="show(tx.analysis)" :emoji="tx.analysis.totalAlerts" text="Click for details" />
+            <span v-else>NA</span>
+          </td>
+          <td v-if="showAction">
             <button style="padding: .2em" :disabled="disabled(tx)" @click="execute(tx)">Execute</button>
             <button style="padding: .2em" :disabled="!buildInProvider && !canCancel" @click="cancel(tx.txHash, tx.actionDate)">Cancel</button>
           </td>
-          <td v-if="tx.signers && tx.signers.signersInfo" style="white-space: nowrap;">
+          <td v-if="tx.signers && tx.signers.signersInfo">
             {{ tx.signers.signersInfo.length + (tx.signers.signersInfo.length>1 ? ' signers': ' signer')}}
             <myTooltip :emoji="'(' + tx.signers.quorums.threshold + '|' + tx.signers.quorums.quorumCancel + '|' + tx.signers.quorums.quorumExecute + ')'" text="(threshold|quorumCancel|quorumExecute)" />
             <myTooltip v-if="showSigners != txIndex" @click="showSigners=txIndex" icon="fa-solid fa-angle-down" text="Show the signers" />
@@ -148,6 +160,7 @@ h2 {
 }
 .transaction-table th,
 .transaction-table td {
+  white-space: nowrap;
   border: 1px solid #ccc;
   padding: 0.5rem 0.75rem;
   text-align: center;

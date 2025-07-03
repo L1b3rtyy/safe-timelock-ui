@@ -3,11 +3,13 @@
   import myTooltip from './components/myTooltip.vue';
   import TransactionAction from './components/TransactionAction.vue';
   import Transactions from './components/Transactions.vue';
-  import { getSignersFromSafeTx, zeroAddress, getProxyDetails, loadGuardData, getGuardVersion, defineListenersGuard, SAFE_EVENT_NAMES, STATES, EVENT_NAMES_PROXY, initSafe, setConfig, setGuard, defineListenersSafe, upgradeGuard, setProvider } from './composables/useSafe.js';
-  import { ref, onMounted, computed, useTemplateRef  } from 'vue';
+  import { getSignersFromSafeTx, getProxyDetails, loadGuardData, getGuardVersion, defineListenersGuard, SAFE_EVENT_NAMES, STATES, EVENT_NAMES_PROXY, initSafe, setConfig, setGuard, defineListenersSafe, upgradeGuard, setProvider } from './composables/useSafe.js';
+  import { ref, onMounted, computed, useTemplateRef, watch  } from 'vue';
   import { version } from "../package.json";
   import versions from "./composables/versions.json";
   import Deploy from "./components/Deploy.vue";
+  import { analyzeTransaction} from "./composables/useSafe.js";
+  import { ethers } from 'ethers';
   
   const transactionAction = useTemplateRef(null);
   const newProvider = ref(null);
@@ -33,10 +35,46 @@
   const lastQueueTime = ref(0);
   const isDeployOpen = ref(false);
   const buildInProvider = ref(Boolean(window.ethereum));
+
+  const ETHERSCAN_API_KEY_STATUS = { CHECKING: 1, VALID: 2, INVALID: 3 };
+  const etherscanAPIKeyStatus = ref(0);
+  const etherscanAPIKey = ref(null);
   const providerStr = ref(buildInProvider.value && "BUILD IN");
+  const trustedAddresses = computed(() => {
+    return [
+      ...(safeInfo.value?.owners || []),
+      guardInfo.value?.address,
+      guardInfo.value?.proxyData?.proxy?.imp,
+      guardInfo.value?.proxyData?.proxy?.admin,
+      safeInfo.value?.safeAddress
+    ].map(x=>x.toLowerCase && x.toLowerCase());
+  })
   const directExecutionEnabled = computed(() => {
     return guardInfoOld.value.quorumExecute > safeInfo.value.threshold && buildInProvider.value;
   })
+  const formatEtherscanAPIKey = computed(() => Boolean(etherscanAPIKey.value && etherscanAPIKey.value.match(/^[A-Z0-9]{34}$/)))
+  watch(etherscanAPIKey, async () => {
+    if (formatEtherscanAPIKey.value) {
+      etherscanAPIKeyStatus.value = ETHERSCAN_API_KEY_STATUS.CHECKING;
+      const txRes = await fetch("https://api.etherscan.io/v2/api?chainid=1&module=stats&action=ethsupply&apikey=" + etherscanAPIKey.value);
+      const txData = await txRes.json();
+      console.log("App.formatEtherscanAPIKey.watch - txData=", txData);
+      if(txData.message == "OK") {
+        console.log("App.formatEtherscanAPIKey.watch - valid key");
+        etherscanAPIKeyStatus.value = ETHERSCAN_API_KEY_STATUS.VALID;
+        for(const tx of transactions.value.filter(tx => tx.state == STATES.QUEUED))
+          analyzeTransactionHelper(tx);
+        return;
+      }
+      etherscanAPIKeyStatus.value = ETHERSCAN_API_KEY_STATUS.INVALID;
+    }
+  })
+  function analyzeTransactionHelper(tx) {
+    if(etherscanAPIKeyStatus.value == ETHERSCAN_API_KEY_STATUS.VALID && !tx.analysisStarted) {
+      tx.analysisStarted = true;
+      analyzeTransaction(tx.to, tx.data, tx.operation, safeInfo.value.chainId, etherscanAPIKey.value, trustedAddresses.value).then(analysis => tx.analysis = analysis);
+    }
+  }
   const connected = computed(() => {
     return Boolean(safeInfo.value && safeInfo.value.safeAddress && guardInfo.value.address && providerStr.value)
   })
@@ -154,6 +192,11 @@ M:  for (let i = 0; i < array.length; i++) {
         break;
     }
   }
+  function postProcessTx(tx) {
+    if(tx.state == STATES.QUEUED)
+      analyzeTransactionHelper(tx);
+    getSignersFromSafeTx(tx.realHash).then(signers => tx.signers = signers);
+  }
   function _loadGuardData(_guardAddress) {
     console.log('App._loadGuardData - _guardAddress=' + _guardAddress);
     guardInfo.value = {address: _guardAddress};
@@ -169,7 +212,7 @@ M:  for (let i = 0; i < array.length; i++) {
         lastQueueTime.value = txs && txs.length ? Math.max(...txs.map(x=>x.queueDate)) : 0;
         transactions.value = txs.filter(tx => tx.state == STATES.QUEUED || tx.state == STATES.CANCELED);
         for(const tx of transactions.value)
-          getSignersFromSafeTx(tx.realHash).then(signers => tx.signers = signers);
+          postProcessTx(tx);
         console.log('App._loadGuardData - define Guard listeners');
         defineListenersGuard(transactions.value, updateConfig,
           eventData => {
@@ -178,7 +221,7 @@ M:  for (let i = 0; i < array.length; i++) {
                 lastQueueTime.value = eventData.queueDate;
               const tx = transactions.value.find(t => t.realHash == eventData.realHash);
               if(tx)
-                getSignersFromSafeTx(tx.realHash).then(signers => tx.signers = signers);
+                postProcessTx(tx);
             }
         });
       }),
@@ -257,7 +300,7 @@ M:  for (let i = 0; i < array.length; i++) {
     switch(event.event) {
       case SAFE_EVENT_NAMES.CHANGED_GUARD:
         console.log('safeListener - Guard changed, loading new Guard data');
-        return _loadGuardData((args[0]==zeroAddress) ? null : args[0]);
+        return _loadGuardData((args[0]==ethers.constants.AddressZero) ? null : args[0]);
       case SAFE_EVENT_NAMES.CHANGED_THRESHOLD:
         console.log('safeListener - Threshold changed, updating Safe info');
         safeInfo.value.threshold = args[0];
@@ -441,6 +484,17 @@ M:  for (let i = 0; i < array.length; i++) {
               </td>
             </tr>
             <tr>
+              <td colspan="2" style="text-align: left;">Etherscan API key</td>
+              <td>
+                <input v-model.lazy="etherscanAPIKey" :disabled="etherscanAPIKeyStatus == ETHERSCAN_API_KEY_STATUS.VALID || etherscanAPIKeyStatus == ETHERSCAN_API_KEY_STATUS.CHECKING " type="text" class="narrow"/>
+                <myTooltip v-if="!etherscanAPIKey" emoji="⚠️" text="Please provide a key to analyze transactions"/>
+                <myTooltip v-else-if="!formatEtherscanAPIKey" emoji="⚠️" text="Provided value is not in expected format"/>
+                <myTooltip v-else-if="etherscanAPIKeyStatus == ETHERSCAN_API_KEY_STATUS.VALID" emoji="✅" text="Valid API Key"/>
+                <myTooltip v-else-if="etherscanAPIKeyStatus == ETHERSCAN_API_KEY_STATUS.INVALID" emoji="⚠️" text="Invalid API Key"/>
+                <myTooltip v-else emoji="♻️" text="Checking API Key"/>
+              </td>
+            </tr>
+            <tr>
               <td colspan="3" style="text-align: left; border-left: none; border-right: none;"/>
             </tr>
             <tr>
@@ -533,6 +587,7 @@ M:  for (let i = 0; i < array.length; i++) {
 .tables-wrapper {
   display: flex;              /* Flexbox layout for horizontal alignment */
   flex-direction: row;        /* Explicit for clarity */
+  align-items: flex-start;
   gap: 20px;                  /* Optional spacing between tables */
 }
 .status-table {
@@ -543,6 +598,7 @@ M:  for (let i = 0; i < array.length; i++) {
 
 .status-table th,
 .status-table td {
+  white-space: nowrap;
   border: 1px solid #ccc;
   padding: 0.3rem;
   text-align: center;

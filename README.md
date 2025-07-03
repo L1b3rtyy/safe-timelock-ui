@@ -20,6 +20,7 @@ Allows:
   * Additional signatures are needed to cancel a transaction (```quorumCancel > threshold```)
   * Direct transaction execution is enabled (```quorumExecute > threshold```) 
 - Removing owners of suspicious transactions
+- Basic alert system on queued transactions: custom heuristic to flag potentially dangerous transactions 
 
 More info on [How to create a Safe App with Safe Apps SDK and list it](https://help.safe.global/en/articles/145503-how-to-create-a-safe-app-with-safe-apps-sdk-and-list-it)
 

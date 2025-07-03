@@ -48,10 +48,10 @@
         </p>
         <button :disabled="state != STATES.CONFIG" @click="deployHelper()">Deploy</button>
         <p>Proxy Admin contract status:<br>
-          <span v-html="proxyAdminStatus"/>
+          <span v-html="proxyAdminStatus"/> <!-- eslint-disable-line vue/no-v-html -->
         </p>
         <p>Proxy contract status:<br>
-          <span v-html="proxyStatus"/>
+          <span v-html="proxyStatus"/>      <!-- eslint-disable-line vue/no-v-html -->
         </p>
         <p v-if="error">{{ error }}</p>
       </div>

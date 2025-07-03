@@ -5,6 +5,7 @@ import safeABI from './SafeABI.json';
 import ProxyAdminABI from './ProxyAdminABI.json';
 import ProxyABI from './ProxyABI.json';
 import SafeAppsSDK from '@safe-global/safe-apps-sdk';
+import * as monitoring from './monitoring.js';
 
 let guardAddress = null;
 let safeAddress = null;
@@ -12,7 +13,6 @@ let provider = null;
 let guardContract = null;
 let safeContract = null;
 let queueCallback = null;
-export const zeroAddress = '0x0000000000000000000000000000000000000000';
 
 const sdk = new SafeAppsSDK({ allowedDomains: [/app\.safe\.global$/] });
 export const STATES = {QUEUED: 0, CANCELED: 1, EXECUTED: 2, CLEARED: 3};
@@ -131,7 +131,7 @@ export async function setGuard(existingTimelockGuard, mewGuardAddress) {
   }
   const safeAbi = 'function setGuard(address guard)'
   const functionName = "setGuard";
-  const args = [mewGuardAddress || zeroAddress];
+  const args = [mewGuardAddress || ethers.constants.AddressZero];
   if(existingTimelockGuard)
     return queueTransactionHelper(safeAddress, '0', safeAbi, functionName, args)
   else
@@ -181,8 +181,8 @@ export async function getProxyDetails(proxyAddress, eventListenerProxy) {
 
   console.log("getProxyDetails - [implAdd, adminAdd]=" + [implAdd, adminAdd]);
 
-  const isProxy = implAdd !== zeroAddress;
-  const isTransparent = adminAdd !== zeroAddress;
+  const isProxy = implAdd !== ethers.constants.AddressZero;
+  const isTransparent = adminAdd !== ethers.constants.AddressZero;
 
   if (isProxy && isTransparent) {
     console.log("getProxyDetails - ✅ This is a Transparent Proxy");
@@ -395,4 +395,7 @@ function parseSafeSignatures(signatures, txHashToSign) {
     signers.push({ signer: null, type: 'unknown', rawV: v });
   }
   return signers;
+}
+export async function analyzeTransaction(toAddress, calldata, operation, chainId, etherscanApiKey, trustedAddresses)  {
+  return monitoring.analyzeTransaction(toAddress, calldata, operation, chainId, etherscanApiKey, safeAddress, provider, trustedAddresses)
 }
