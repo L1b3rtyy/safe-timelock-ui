@@ -2,7 +2,7 @@
   <div v-if="modelValue" class="modal-overlay" @click.self="$emit('close')">
     <div class="modal">
       <div class="close-btn">
-        <myTooltip @click="init()" icon="fa-solid fa-trash-can" text="Reset"/>
+        <myTooltip v-if="isReset" @click="init()" icon="fa-solid fa-trash-can" text="Reset"/>
         <myTooltip @click="$emit('close')" emoji="x" text="Close"/>
       </div>
 
@@ -105,9 +105,15 @@ const props = defineProps({
   const proxyStatus = ref(null);
   const config = ref(null)
 
+  const isReset = computed(() => {
+    return proxyAdminAddress.value !== null || proxyAddress.value !== null || state.value !== STATES.CONFIG || error.value !== null
+      || proxyAdminStatus.value !== "Not started" || proxyStatus.value !== "Not started"
+      || config.value.timelockDuration !== 172800 || config.value.throttle !== 180 || config.value.limitNoTimelock !== 0.1 ||
+      config.value.quorumCancel !== defaultQuorum.value.cancel || config.value.quorumExecute !== defaultQuorum.value.execute;
+  })
   const defaultQuorum = computed(() => {
     let cancel = props.nbOwners > props.threshold ? props.threshold+1 : 0;
-    let execute = props.nbOwners > cancel ? cancel+1 : 0;;
+    let execute = props.nbOwners > cancel ? cancel+1 : (cancel > props.threshold ? cancel : 0);
     return {cancel, execute}
   })
 
